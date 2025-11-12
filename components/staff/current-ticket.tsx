@@ -108,24 +108,26 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
 
   return (
     <>
-      <Card>
-        <CardHeader>
+      <Card className="border-0 shadow-xl overflow-hidden">
+        <CardHeader className="">
           <CardTitle className="flex items-center justify-between">
-            <span>Current Ticket</span>
-            <Badge variant="outline">{counter.name}</Badge>
+            <span className="text-xl text-[#0033A0]">Current Ticket</span>
+            <Badge className="bg-yellow-400 text-[#0033A0] hover:bg-yellow-400">{counter.name}</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6">
           {!ticket ? (
-            <div className="py-12 text-center">
-              <User className="mx-auto h-16 w-16 text-gray-300" />
-              <h3 className="mt-4 text-lg font-medium text-gray-900">No active ticket</h3>
-              <p className="mt-2 text-sm text-gray-500">
+            <div className="py-16 text-center">
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
+                <User className="h-10 w-10 text-gray-400" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">No active ticket</h3>
+              <p className="mt-2 text-gray-500">
                 Click "Call Next" to serve the next customer
               </p>
               <Button
                 size="lg"
-                className="mt-6"
+                className="mt-8 bg-gradient-to-r from-[#0033A0] to-[#1A237E] hover:from-[#002080] hover:to-[#0d1554]"
                 onClick={handleCallNext}
                 disabled={loading}
               >
@@ -135,16 +137,20 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
                     Calling...
                   </>
                 ) : (
-                  'Call Next'
+                  <>
+                    <Phone className="mr-2 h-5 w-5" />
+                    Call Next
+                  </>
                 )}
               </Button>
             </div>
           ) : (
             <div className="space-y-6">
               {/* Ticket Number Display */}
-              <div className="rounded-lg bg-blue-50 p-6 text-center">
-                <p className="text-sm font-medium text-blue-600">Now Serving</p>
-                <p className="mt-2 text-5xl font-bold text-blue-900">
+              <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0033A0] to-[#1A237E] p-8 text-center shadow-lg">
+                <div className="absolute -right-10 -top-10 h-40 w-40 rounded-full bg-yellow-400 opacity-20 blur-3xl" />
+                <p className="relative text-sm font-semibold uppercase tracking-wide text-yellow-400">Now Serving</p>
+                <p className="relative mt-3 text-6xl font-black text-white drop-shadow-lg">
                   {ticket.ticket_number}
                 </p>
               </div>

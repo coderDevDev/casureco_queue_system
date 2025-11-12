@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { StaffHeader } from '@/components/staff/staff-header';
+import { AdminSidebar } from '@/components/admin/admin-sidebar';
+import { AdminHeader } from '@/components/admin/admin-header';
 
 export default async function DashboardLayout({
   children,
@@ -28,9 +29,20 @@ export default async function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <StaffHeader profile={profile} />
-      <main className="container mx-auto px-4 py-6">{children}</main>
+    <div className="flex h-screen overflow-hidden bg-gray-50">
+      {/* Shared Sidebar with role-based navigation */}
+      <AdminSidebar role={profile.role} />
+      
+      {/* Main Content Area */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Shared Header */}
+        <AdminHeader profile={profile} />
+        
+        {/* Page Content */}
+        <main className="flex-1 overflow-y-auto bg-gradient-to-br from-gray-50 to-blue-50 p-6">
+          <div className="mx-auto max-w-7xl">{children}</div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -44,11 +44,11 @@ export default function DisplayPage() {
   console.log(' Display - Total tickets:', tickets.length, 'Serving:', servingTickets.length, servingTickets.map(t => t.ticket_number));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
       <DisplayHeader />
       
-      <main className="container mx-auto px-4 py-8">
-        <div className="space-y-8">
+      <main className="container mx-auto px-6 py-10">
+        <div className="space-y-12">
           {/* Now Serving Section */}
           <NowServing tickets={servingTickets} counters={counters} />
           

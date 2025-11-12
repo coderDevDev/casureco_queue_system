@@ -66,11 +66,11 @@ export function Announcements({ branchId }: AnnouncementsProps) {
   const getIcon = (type: string) => {
     switch (type) {
       case 'warning':
-        return <AlertTriangle className="h-5 w-5" />;
+        return <AlertTriangle className="h-6 w-6" />;
       case 'alert':
-        return <AlertCircle className="h-5 w-5" />;
+        return <AlertCircle className="h-6 w-6" />;
       default:
-        return <Info className="h-5 w-5" />;
+        return <Info className="h-6 w-6" />;
     }
   };
 
@@ -86,17 +86,24 @@ export function Announcements({ branchId }: AnnouncementsProps) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
+      <div className="mb-8 flex items-center gap-4">
+        <h2 className="text-5xl font-bold text-gray-900">Announcements</h2>
+        <div className="h-1 flex-1 rounded-full bg-gradient-to-r from-[#FFD100] to-transparent" />
+      </div>
+      
       {announcements.map((announcement) => (
         <Card
           key={announcement.id}
-          className={`border-2 ${getColor(announcement.type)}`}
+          className={`border-0 shadow-lg transition-all duration-300 hover:shadow-xl ${getColor(announcement.type)}`}
         >
-          <CardContent className="flex items-start gap-3 p-4">
-            {getIcon(announcement.type)}
+          <CardContent className="flex items-start gap-4 p-6">
+            <div className="flex-shrink-0 rounded-xl bg-white/50 p-3">
+              {getIcon(announcement.type)}
+            </div>
             <div className="flex-1">
-              <h3 className="font-semibold">{announcement.title}</h3>
-              <p className="mt-1 text-sm">{announcement.message}</p>
+              <h3 className="text-2xl font-bold mb-2">{announcement.title}</h3>
+              <p className="text-lg leading-relaxed">{announcement.message}</p>
             </div>
           </CardContent>
         </Card>

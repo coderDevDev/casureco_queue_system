@@ -14,24 +14,26 @@ export function QueueDisplay({ tickets }: QueueDisplayProps) {
   const waitingTickets = tickets.filter((t) => t.status === 'waiting');
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className="border-0 shadow-xl overflow-hidden">
+      <CardHeader className="">
         <CardTitle className="flex items-center justify-between">
-          <span>Waiting Queue</span>
-          <Badge variant="secondary">
-            <Users className="mr-1 h-3 w-3" />
+          <span className="text-xl">Waiting Queue</span>
+          <Badge className="bg-yellow-400 text-[#0033A0] hover:bg-yellow-400">
+            <Users className="mr-1 h-4 w-4" />
             {waitingTickets.length}
           </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6">
         {waitingTickets.length === 0 ? (
-          <div className="py-8 text-center text-gray-500">
-            <Users className="mx-auto h-12 w-12 text-gray-300" />
-            <p className="mt-2">No tickets in queue</p>
+          <div className="py-16 text-center">
+            <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
+              <Users className="h-10 w-10 text-gray-400" />
+            </div>
+            <p className="text-lg font-medium text-gray-500">No tickets in queue</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {waitingTickets.slice(0, 10).map((ticket, index) => {
               const waitTime = Math.floor(
                 (Date.now() - new Date(ticket.created_at).getTime()) / 1000
@@ -40,22 +42,22 @@ export function QueueDisplay({ tickets }: QueueDisplayProps) {
               return (
                 <div
                   key={ticket.id}
-                  className="flex items-center justify-between rounded-lg border p-3"
+                  className="group flex items-center justify-between rounded-xl border-2 border-gray-200 bg-white p-4 transition-all duration-200 hover:border-[#0033A0] hover:shadow-md"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#0033A0] to-[#1A237E] text-sm font-bold text-white shadow-md">
                       {index + 1}
                     </div>
                     <div>
-                      <p className="font-semibold">{ticket.ticket_number}</p>
+                      <p className="text-lg font-bold text-gray-900">{ticket.ticket_number}</p>
                       <p className="text-sm text-gray-500">
                         {ticket.service?.name || 'Unknown Service'}
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-sm text-gray-500">
-                    <Clock className="h-4 w-4" />
-                    <span>{formatDuration(waitTime)}</span>
+                  <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2">
+                    <Clock className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm font-medium text-blue-900">{formatDuration(waitTime)}</span>
                   </div>
                 </div>
               );

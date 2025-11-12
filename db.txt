@@ -1,0 +1,142 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.announcements (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  branch_id uuid,
+  title text NOT NULL,
+  message text NOT NULL,
+  type text DEFAULT 'info'::text,
+  is_active boolean DEFAULT true,
+  display_duration integer DEFAULT 10,
+  priority integer DEFAULT 0,
+  start_date timestamp with time zone,
+  end_date timestamp with time zone,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT announcements_pkey PRIMARY KEY (id),
+  CONSTRAINT announcements_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id),
+  CONSTRAINT announcements_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.audit_logs (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  table_name text NOT NULL,
+  record_id uuid NOT NULL,
+  action text NOT NULL,
+  old_data jsonb,
+  new_data jsonb,
+  actor_id uuid,
+  actor_role USER-DEFINED,
+  branch_id uuid,
+  ip_address inet,
+  user_agent text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT audit_logs_pkey PRIMARY KEY (id),
+  CONSTRAINT audit_logs_actor_id_fkey FOREIGN KEY (actor_id) REFERENCES public.users(id),
+  CONSTRAINT audit_logs_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id)
+);
+CREATE TABLE public.branches (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  mode USER-DEFINED DEFAULT 'hybrid'::deployment_mode,
+  is_active boolean DEFAULT true,
+  settings jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT branches_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.counters (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  branch_id uuid,
+  staff_id uuid,
+  is_active boolean DEFAULT true,
+  is_paused boolean DEFAULT false,
+  last_ping timestamp with time zone DEFAULT now(),
+  settings jsonb DEFAULT '{}'::jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT counters_pkey PRIMARY KEY (id),
+  CONSTRAINT counters_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id),
+  CONSTRAINT counters_staff_id_fkey FOREIGN KEY (staff_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.services (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  prefix text NOT NULL,
+  description text,
+  avg_service_time integer DEFAULT 300,
+  branch_id uuid,
+  is_active boolean DEFAULT true,
+  color text DEFAULT '#3b82f6'::text,
+  icon text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT services_pkey PRIMARY KEY (id),
+  CONSTRAINT services_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id)
+);
+CREATE TABLE public.system_settings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  branch_id uuid,
+  key text NOT NULL,
+  value jsonb NOT NULL,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT system_settings_pkey PRIMARY KEY (id),
+  CONSTRAINT system_settings_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id)
+);
+CREATE TABLE public.ticket_sequences (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  service_id uuid,
+  branch_id uuid,
+  current_number integer DEFAULT 0,
+  date date DEFAULT CURRENT_DATE,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT ticket_sequences_pkey PRIMARY KEY (id),
+  CONSTRAINT ticket_sequences_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
+  CONSTRAINT ticket_sequences_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id)
+);
+CREATE TABLE public.tickets (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  ticket_number text NOT NULL,
+  service_id uuid,
+  status USER-DEFINED DEFAULT 'waiting'::ticket_status,
+  priority_level integer DEFAULT 0,
+  counter_id uuid,
+  kiosk_id text,
+  branch_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  called_at timestamp with time zone,
+  started_at timestamp with time zone,
+  ended_at timestamp with time zone,
+  notes text,
+  issued_by uuid,
+  served_by uuid,
+  synced boolean DEFAULT true,
+  sync_version integer DEFAULT 1,
+  customer_name text,
+  customer_phone text,
+  CONSTRAINT tickets_pkey PRIMARY KEY (id),
+  CONSTRAINT tickets_service_id_fkey FOREIGN KEY (service_id) REFERENCES public.services(id),
+  CONSTRAINT tickets_counter_id_fkey FOREIGN KEY (counter_id) REFERENCES public.counters(id),
+  CONSTRAINT tickets_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id),
+  CONSTRAINT tickets_issued_by_fkey FOREIGN KEY (issued_by) REFERENCES public.users(id),
+  CONSTRAINT tickets_served_by_fkey FOREIGN KEY (served_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.users (
+  id uuid NOT NULL,
+  name text NOT NULL,
+  email text NOT NULL UNIQUE,
+  role USER-DEFINED NOT NULL DEFAULT 'staff'::user_role,
+  branch_id uuid,
+  is_active boolean DEFAULT true,
+  avatar_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id),
+  CONSTRAINT users_branch_id_fkey FOREIGN KEY (branch_id) REFERENCES public.branches(id)
+);

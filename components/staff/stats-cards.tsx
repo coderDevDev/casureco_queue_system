@@ -13,10 +13,13 @@ interface StatsCardsProps {
 export function StatsCards({ stats, counter }: StatsCardsProps) {
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
+      {/* Waiting Tickets */}
+      <Card className="border-0 shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Waiting</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
+          <div className="rounded-lg bg-blue-100 p-2">
+            <Users className="h-4 w-4 text-blue-600" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats?.waiting_tickets || 0}</div>
@@ -24,10 +27,13 @@ export function StatsCards({ stats, counter }: StatsCardsProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Avg Wait Time */}
+      <Card className="border-0 shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Avg Wait Time</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
+          <div className="rounded-lg bg-yellow-100 p-2">
+            <Clock className="h-4 w-4 text-yellow-600" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
@@ -37,10 +43,13 @@ export function StatsCards({ stats, counter }: StatsCardsProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Completed Today */}
+      <Card className="border-0 shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Completed Today</CardTitle>
-          <CheckCircle className="h-4 w-4 text-muted-foreground" />
+          <div className="rounded-lg bg-green-100 p-2">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{stats?.completed_tickets || 0}</div>
@@ -48,10 +57,13 @@ export function StatsCards({ stats, counter }: StatsCardsProps) {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* Avg Service Time */}
+      <Card className="border-0 shadow-lg">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Avg Service Time</CardTitle>
-          <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          <div className="rounded-lg bg-purple-100 p-2">
+            <TrendingUp className="h-4 w-4 text-purple-600" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
