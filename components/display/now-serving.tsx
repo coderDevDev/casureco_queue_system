@@ -3,14 +3,15 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TicketWithDetails, Counter } from '@/types/queue';
-import { Monitor, ArrowRight } from 'lucide-react';
+import { Monitor, ArrowRight, Loader2 } from 'lucide-react';
 
 interface NowServingProps {
   tickets: TicketWithDetails[];
   counters: Counter[];
+  loading?: boolean;
 }
 
-export function NowServing({ tickets, counters }: NowServingProps) {
+export function NowServing({ tickets, counters, loading = false }: NowServingProps) {
   return (
     <div>
       <div className="mb-8 flex items-center gap-4">
@@ -27,6 +28,7 @@ export function NowServing({ tickets, counters }: NowServingProps) {
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {tickets.map((ticket) => {
             const counter = counters.find((c) => c.id === ticket.counter_id);
+            const counterName = counter?.name || (loading ? 'Loading...' : `Counter ${ticket.counter_id?.slice(-4) || 'Unknown'}`);
             
             return (
               <Card
@@ -40,9 +42,13 @@ export function NowServing({ tickets, counters }: NowServingProps) {
                 <div className="relative text-center">
                   {/* Counter Badge */}
                   <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-yellow-400 px-6 py-2">
-                    <Monitor className="h-5 w-5 text-[#0033A0]" />
+                    {loading && !counter ? (
+                      <Loader2 className="h-5 w-5 text-[#0033A0] animate-spin" />
+                    ) : (
+                      <Monitor className="h-5 w-5 text-[#0033A0]" />
+                    )}
                     <span className="text-lg font-bold text-[#0033A0]">
-                      {counter?.name || 'Counter'}
+                      {counterName}
                     </span>
                   </div>
                   
@@ -56,7 +62,7 @@ export function NowServing({ tickets, counters }: NowServingProps) {
                   {/* Service Name */}
                   <div className="flex items-center justify-center gap-2 rounded-xl bg-white/10 px-6 py-3 backdrop-blur-sm">
                     <p className="text-2xl font-bold text-white">
-                      {ticket.service?.name}
+                      {ticket.service?.name || 'Service'}
                     </p>
                     <ArrowRight className="h-6 w-6 text-yellow-400 animate-pulse" />
                   </div>

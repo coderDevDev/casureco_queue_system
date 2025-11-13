@@ -63,10 +63,11 @@ export function useRealtimeTickets(options: UseRealtimeTicketsOptions) {
     }
 
     function setupRealtimeSubscription() {
-      console.log('🔌 Setting up realtime subscription for tickets...');
+      const channelName = `tickets-changes-${options.branchId}-${options.serviceId || 'all'}-${options.status || 'all'}`;
+      console.log('🔌 Setting up realtime subscription for tickets:', channelName);
       
       channel = supabase
-        .channel('tickets-changes')
+        .channel(channelName)
         .on(
           'postgres_changes',
           {

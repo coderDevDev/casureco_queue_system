@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Phone, User, Clock, CheckCircle, XCircle, SkipForward, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,18 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
   const [loading, setLoading] = useState(false);
   const [showSkipDialog, setShowSkipDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef(true);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   async function handleCallNext() {
     setLoading(true);
@@ -41,34 +53,58 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
       } else {
         toast.info('No tickets in queue');
       }
-    } catch (error) {
-      toast.error('Failed to call next ticket');
+    } catch (error: any) {
+      console.error('Error calling next ticket:', error);
+      toast.error(error.message || 'Failed to call next ticket');
     } finally {
       setLoading(false);
     }
   }
 
   async function handleComplete() {
-    if (!ticket) return;
+    if (!ticket || loading) return;
+
+    // Validate ticket is still serving
+    if (ticket.status !== 'serving') {
+      toast.error('Ticket is no longer being served');
+      return;
+    }
 
     setLoading(true);
     try {
       await updateTicketStatus(ticket.id, 'done');
       toast.success('Ticket completed');
       
-      // Automatically call next ticket
-      setTimeout(() => {
-        handleCallNext();
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Automatically call next ticket with cleanup
+      timeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          handleCallNext();
+        }
       }, 500);
-    } catch (error) {
-      toast.error('Failed to complete ticket');
+    } catch (error: any) {
+      console.error('Error completing ticket:', error);
+      toast.error(error.message || 'Failed to complete ticket');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }
 
   async function handleSkip() {
-    if (!ticket) return;
+    if (!ticket || loading) return;
+
+    // Validate ticket is still serving
+    if (ticket.status !== 'serving') {
+      toast.error('Ticket is no longer being served');
+      setShowSkipDialog(false);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -76,29 +112,49 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
       toast.info('Ticket skipped');
       setShowSkipDialog(false);
       
-      // Automatically call next ticket
-      setTimeout(() => {
-        handleCallNext();
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Automatically call next ticket with cleanup
+      timeoutRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          handleCallNext();
+        }
       }, 500);
-    } catch (error) {
-      toast.error('Failed to skip ticket');
+    } catch (error: any) {
+      console.error('Error skipping ticket:', error);
+      toast.error(error.message || 'Failed to skip ticket');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }
 
   async function handleCancel() {
-    if (!ticket) return;
+    if (!ticket || loading) return;
+
+    // Validate ticket is still serving
+    if (ticket.status !== 'serving') {
+      toast.error('Ticket is no longer being served');
+      setShowCancelDialog(false);
+      return;
+    }
 
     setLoading(true);
     try {
       await updateTicketStatus(ticket.id, 'cancelled');
       toast.info('Ticket cancelled');
       setShowCancelDialog(false);
-    } catch (error) {
-      toast.error('Failed to cancel ticket');
+    } catch (error: any) {
+      console.error('Error cancelling ticket:', error);
+      toast.error(error.message || 'Failed to cancel ticket');
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }
 

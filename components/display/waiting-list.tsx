@@ -2,20 +2,18 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useRealtimeTickets } from '@/lib/hooks/use-realtime-tickets';
-import { Users, Clock } from 'lucide-react';
+import { TicketWithDetails } from '@/types/queue';
+import { Users, Clock, Loader2 } from 'lucide-react';
 
 interface WaitingListProps {
-  branchId: string;
+  tickets: TicketWithDetails[];
+  loading?: boolean;
 }
 
-export function WaitingList({ branchId }: WaitingListProps) {
-  const { tickets } = useRealtimeTickets({
-    branchId,
-    status: 'waiting', // Only fetch waiting tickets
-  });
-
+export function WaitingList({ tickets, loading = false }: WaitingListProps) {
   const waitingTickets = tickets.slice(0, 10); // Show only next 10
+  const totalWaiting = tickets.length;
+  const hasMoreTickets = totalWaiting > 10;
 
   return (
     <Card className="border-0 bg-white shadow-xl">
@@ -29,12 +27,26 @@ export function WaitingList({ branchId }: WaitingListProps) {
           </div>
           <Badge className="bg-[#FFD100] text-[#0033A0] text-xl px-4 py-2 hover:bg-[#FFD100]">
             <Users className="mr-2 h-5 w-5" />
-            {tickets.length}
+            {loading ? (
+              <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                {waitingTickets.length}
+                {hasMoreTickets && (
+                  <span className="ml-1 text-sm opacity-75">of {totalWaiting}</span>
+                )}
+              </>
+            )}
           </Badge>
         </CardTitle>
       </CardHeader>
       <CardContent className="p-8">
-        {waitingTickets.length === 0 ? (
+        {loading ? (
+          <div className="py-12 text-center">
+            <Loader2 className="mx-auto h-16 w-16 animate-spin text-gray-400" />
+            <p className="mt-4 text-xl font-medium text-gray-500">Loading tickets...</p>
+          </div>
+        ) : waitingTickets.length === 0 ? (
           <div className="py-12 text-center">
             <Users className="mx-auto h-16 w-16 text-gray-300" />
             <p className="mt-4 text-xl font-medium text-gray-500">No tickets waiting</p>
@@ -52,12 +64,12 @@ export function WaitingList({ branchId }: WaitingListProps) {
                     {index + 1}
                   </div>
                 </div>
-                
+
                 {/* Ticket Number */}
                 <p className="text-4xl font-black text-gray-900 mb-2">
                   {ticket.ticket_number}
                 </p>
-                
+
                 {/* Service Name */}
                 <div className="rounded-lg bg-blue-50 px-3 py-1.5">
                   <p className="text-sm font-semibold text-[#0033A0] truncate">
@@ -66,6 +78,15 @@ export function WaitingList({ branchId }: WaitingListProps) {
                 </div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Show indicator if there are more tickets */}
+        {hasMoreTickets && !loading && (
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-500">
+              Showing first 10 of {totalWaiting} waiting tickets
+            </p>
           </div>
         )}
       </CardContent>

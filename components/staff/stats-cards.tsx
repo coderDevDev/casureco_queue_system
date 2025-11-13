@@ -11,6 +11,10 @@ interface StatsCardsProps {
 }
 
 export function StatsCards({ stats, counter }: StatsCardsProps) {
+  // Debug logging
+  console.log('📊 StatsCards - Stats data:', stats);
+  console.log('🏪 StatsCards - Counter:', counter);
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       {/* Waiting Tickets */}

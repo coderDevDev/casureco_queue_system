@@ -26,11 +26,11 @@ export default function DisplayPage() {
     }
   }, []);
 
-  const { tickets } = useRealtimeTickets({
+  const { tickets, loading: ticketsLoading } = useRealtimeTickets({
     branchId,
   });
 
-  const { counters } = useRealtimeCounters(branchId);
+  const { counters, loading: countersLoading } = useRealtimeCounters(branchId);
 
   if (!branchId) {
     return (
@@ -40,8 +40,11 @@ export default function DisplayPage() {
     );
   }
 
+  // Filter tickets for different sections
   const servingTickets = tickets.filter((t) => t.status === 'serving');
-  console.log(' Display - Total tickets:', tickets.length, 'Serving:', servingTickets.length, servingTickets.map(t => t.ticket_number));
+  const waitingTickets = tickets.filter((t) => t.status === 'waiting');
+  
+  console.log(' Display - Total tickets:', tickets.length, 'Serving:', servingTickets.length, 'Waiting:', waitingTickets.length);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50">
@@ -50,10 +53,17 @@ export default function DisplayPage() {
       <main className="container mx-auto px-6 py-10">
         <div className="space-y-12">
           {/* Now Serving Section */}
-          <NowServing tickets={servingTickets} counters={counters} />
+          <NowServing 
+            tickets={servingTickets} 
+            counters={counters} 
+            loading={countersLoading}
+          />
           
           {/* Waiting List */}
-          <WaitingList branchId={branchId} />
+          <WaitingList 
+            tickets={waitingTickets} 
+            loading={ticketsLoading} 
+          />
           
           {/* Announcements */}
           <Announcements branchId={branchId} />

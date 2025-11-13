@@ -15,7 +15,7 @@ interface HistoryTicket {
   id: string;
   ticket_number: string;
   service_id: string;
-  status: 'completed' | 'cancelled' | 'skipped';
+  status: 'done' | 'cancelled' | 'skipped';
   priority_level: number;
   counter_id?: string;
   branch_id: string;
@@ -57,14 +57,21 @@ export default function StaffHistoryPage() {
   });
 
   useEffect(() => {
-    fetchHistory();
-  }, [dateFilter]);
+    if (profile) {
+      fetchHistory();
+    }
+  }, [dateFilter, profile]);
 
   const fetchHistory = async () => {
     const supabase = createClient();
     setLoading(true);
 
     try {
+      // Wait for profile to be loaded
+      if (!profile) {
+        setLoading(false);
+        return;
+      }
       // Calculate date range
       let startDate = new Date();
       switch (dateFilter) {
@@ -90,17 +97,25 @@ export default function StaffHistoryPage() {
           counter:counters(name),
           staff:users!tickets_served_by_fkey(name)
         `)
-        .in('status', ['completed', 'cancelled', 'skipped'])
+        .in('status', ['done', 'cancelled', 'skipped'])
         .gte('created_at', startDate.toISOString())
         .order('ended_at', { ascending: false, nullsFirst: false })
         .order('created_at', { ascending: false });
 
       // Filter by staff if not admin/supervisor
-      if (profile?.role === 'staff') {
+      if (profile.role === 'staff') {
         query = query.eq('served_by', profile.id);
       } else {
         // For admin/supervisor, show branch tickets
-        query = query.eq('branch_id', profile?.branch_id);
+        if (profile.branch_id) {
+          query = query.eq('branch_id', profile.branch_id);
+        } else {
+          // If no branch_id, don't show any tickets
+          setTickets([]);
+          setStats({ completed: 0, cancelled: 0, skipped: 0, avg_service_time: 0 });
+          setLoading(false);
+          return;
+        }
       }
 
       const { data, error } = await query;
@@ -144,10 +159,10 @@ export default function StaffHistoryPage() {
       setTickets(transformedTickets);
 
       // Calculate stats
-      const completed = transformedTickets.filter(t => t.status === 'completed').length;
+      const completed = transformedTickets.filter(t => t.status === 'done').length;
       const cancelled = transformedTickets.filter(t => t.status === 'cancelled').length;
       const skipped = transformedTickets.filter(t => t.status === 'skipped').length;
-      const completedTickets = transformedTickets.filter(t => t.status === 'completed');
+      const completedTickets = transformedTickets.filter(t => t.status === 'done');
       const avgServiceTime = completedTickets.length > 0
         ? completedTickets.reduce((sum, t) => sum + t.service_time, 0) / completedTickets.length
         : 0;
@@ -180,7 +195,7 @@ export default function StaffHistoryPage() {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'done':
         return <Badge className="bg-green-100 text-green-700 hover:bg-green-100">Completed</Badge>;
       case 'cancelled':
         return <Badge className="bg-red-100 text-red-700 hover:bg-red-100">Cancelled</Badge>;
@@ -193,7 +208,7 @@ export default function StaffHistoryPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'done':
         return <CheckCircle className="h-5 w-5 text-green-600" />;
       case 'cancelled':
         return <XCircle className="h-5 w-5 text-red-600" />;
@@ -312,7 +327,7 @@ export default function StaffHistoryPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="done">Completed</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
                 <SelectItem value="skipped">Skipped</SelectItem>
               </SelectContent>
