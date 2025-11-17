@@ -144,14 +144,34 @@ export function useRealtimeTickets(options: UseRealtimeTicketsOptions) {
             }
           }
         )
-        .subscribe((status) => {
+        .subscribe((status, err) => {
           console.log('📊 Subscription status:', status);
           if (status === 'SUBSCRIBED') {
             console.log('✅ Successfully subscribed to realtime updates!');
           } else if (status === 'CHANNEL_ERROR') {
             console.error('❌ Realtime subscription error!');
+            console.error('🔍 Error details:', err);
+            console.error('🔍 Channel name:', channelName);
+            console.error('🔍 Branch ID:', options.branchId);
+            console.error('🔍 Service ID:', options.serviceId);
+            console.error('🔍 Status filter:', options.status);
+            
+            // Try to reconnect after a delay
+            setTimeout(() => {
+              console.log('🔄 Attempting to reconnect...');
+              setupRealtimeSubscription();
+            }, 5000);
           } else if (status === 'TIMED_OUT') {
             console.error('⏱️ Realtime subscription timed out!');
+            console.error('🔍 Channel name:', channelName);
+            
+            // Try to reconnect after a delay
+            setTimeout(() => {
+              console.log('🔄 Attempting to reconnect after timeout...');
+              setupRealtimeSubscription();
+            }, 3000);
+          } else {
+            console.log('🔍 Other subscription status:', status, err);
           }
         });
     }

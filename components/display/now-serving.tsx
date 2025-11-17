@@ -3,7 +3,7 @@
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TicketWithDetails, Counter } from '@/types/queue';
-import { Monitor, ArrowRight, Loader2 } from 'lucide-react';
+import { Monitor, ArrowRight, Loader2, User, AlertCircle } from 'lucide-react';
 
 interface NowServingProps {
   tickets: TicketWithDetails[];
@@ -51,6 +51,24 @@ export function NowServing({ tickets, counters, loading = false }: NowServingPro
                       {counterName}
                     </span>
                   </div>
+                  
+                  {/* Priority Badge */}
+                  {ticket.priority_level === 1 && (
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-amber-400 px-5 py-2 shadow-lg">
+                      <User className="h-5 w-5 text-amber-900" />
+                      <span className="text-base font-bold text-amber-900">
+                        Senior / PWD
+                      </span>
+                    </div>
+                  )}
+                  {ticket.priority_level === 2 && (
+                    <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-red-500 px-5 py-2 shadow-lg animate-pulse">
+                      <AlertCircle className="h-5 w-5 text-white" />
+                      <span className="text-base font-bold text-white">
+                        EMERGENCY
+                      </span>
+                    </div>
+                  )}
                   
                   {/* Ticket Number */}
                   <div className="my-8">

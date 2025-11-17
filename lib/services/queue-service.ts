@@ -181,22 +181,47 @@ export async function callNextTicket(
   const supabase = createClient();
 
   try {
-    const { data, error } = await supabase.rpc('get_next_ticket', {
+    const params = {
       p_service_id: serviceId || null,
       p_counter_id: counterId,
-    });
+    };
+    
+    console.log('🎫 DEBUG: Calling get_next_ticket with params:', params);
+    console.log('🎫 DEBUG: Original serviceId:', serviceId, 'Type:', typeof serviceId);
+    console.log('🎫 DEBUG: Counter ID:', counterId);
+    
+    // Pass null for service_id if empty string or falsy - allows counter to serve any service
+    const { data, error } = await supabase.rpc('get_next_ticket', params);
 
-    if (error) throw error;
+    console.log('🎫 DEBUG: RPC Response - data:', data, 'error:', error);
+
+    if (error) {
+      console.error('🚨 DEBUG: RPC Error details:', error);
+      throw error;
+    }
 
     if (data) {
+      console.log('✅ DEBUG: Found ticket ID:', data);
       // Fetch the updated ticket
       const ticket = await getTicket(data);
+      console.log('✅ DEBUG: Full ticket data:', ticket);
       return ticket;
     }
 
+    console.log('❌ DEBUG: No ticket returned (data is null)');
+    
+    // Let's also check what tickets are available
+    const { data: allTickets } = await supabase
+      .from('tickets')
+      .select('id, ticket_number, status, service_id')
+      .eq('status', 'waiting')
+      .limit(5);
+    
+    console.log('🔍 DEBUG: Available waiting tickets:', allTickets);
+    
     return null;
   } catch (error) {
-    console.error('Error calling next ticket:', error);
+    console.error('🚨 DEBUG: Error calling next ticket:', error);
     return null;
   }
 }

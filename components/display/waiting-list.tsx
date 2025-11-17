@@ -3,7 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TicketWithDetails } from '@/types/queue';
-import { Users, Clock, Loader2 } from 'lucide-react';
+import { Users, Clock, Loader2, User, AlertCircle } from 'lucide-react';
 
 interface WaitingListProps {
   tickets: TicketWithDetails[];
@@ -64,6 +64,22 @@ export function WaitingList({ tickets, loading = false }: WaitingListProps) {
                     {index + 1}
                   </div>
                 </div>
+                
+                {/* Priority Badge */}
+                {ticket.priority_level === 1 && (
+                  <div className="absolute left-2 top-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-400 shadow-md">
+                      <User className="h-4 w-4 text-amber-900" />
+                    </div>
+                  </div>
+                )}
+                {ticket.priority_level === 2 && (
+                  <div className="absolute left-2 top-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-red-500 shadow-md animate-pulse">
+                      <AlertCircle className="h-4 w-4 text-white" />
+                    </div>
+                  </div>
+                )}
 
                 {/* Ticket Number */}
                 <p className="text-4xl font-black text-gray-900 mb-2">

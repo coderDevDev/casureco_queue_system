@@ -8,7 +8,7 @@ import { DisplayHeader } from '@/components/display/display-header';
 import { NowServing } from '@/components/display/now-serving';
 import { WaitingList } from '@/components/display/waiting-list';
 import { Announcements } from '@/components/display/announcements';
-
+import { useTicketAnnouncements } from '@/lib/hooks/use-ticket-announcements';
 export default function DisplayPage() {
   const [branchId, setBranchId] = useState<string>('');
 
@@ -31,6 +31,9 @@ export default function DisplayPage() {
   });
 
   const { counters, loading: countersLoading } = useRealtimeCounters(branchId);
+
+  // Call all hooks before any conditional returns (Rules of Hooks)
+  const { isSupported } = useTicketAnnouncements(tickets, true);
 
   if (!branchId) {
     return (

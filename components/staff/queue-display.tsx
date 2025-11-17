@@ -1,6 +1,6 @@
 'use client';
 
-import { Clock, Users } from 'lucide-react';
+import { Clock, Users, User, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TicketWithDetails } from '@/types/queue';
@@ -48,8 +48,22 @@ export function QueueDisplay({ tickets }: QueueDisplayProps) {
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#0033A0] to-[#1A237E] text-sm font-bold text-white shadow-md">
                       {index + 1}
                     </div>
-                    <div>
-                      <p className="text-lg font-bold text-gray-900">{ticket.ticket_number}</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-lg font-bold text-gray-900">{ticket.ticket_number}</p>
+                        {ticket.priority_level === 1 && (
+                          <Badge className="bg-amber-500 text-white text-xs">
+                            <User className="mr-1 h-3 w-3" />
+                            Senior/PWD
+                          </Badge>
+                        )}
+                        {ticket.priority_level === 2 && (
+                          <Badge variant="destructive" className="text-xs animate-pulse">
+                            <AlertCircle className="mr-1 h-3 w-3" />
+                            EMERGENCY
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-gray-500">
                         {ticket.service?.name || 'Unknown Service'}
                       </p>

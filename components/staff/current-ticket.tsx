@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Phone, User, Clock, CheckCircle, XCircle, SkipForward, Loader2 } from 'lucide-react';
+import { Volume2,Phone, User, Clock, CheckCircle, XCircle, SkipForward, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +19,7 @@ import { TicketWithDetails, Counter } from '@/types/queue';
 import { callNextTicket, updateTicketStatus } from '@/lib/services/queue-service';
 import { formatDuration } from '@/lib/utils';
 import { toast } from 'sonner';
+import { ttsService } from '@/lib/services/tts-service';
 
 interface CurrentTicketProps {
   ticket?: TicketWithDetails;
@@ -27,73 +28,114 @@ interface CurrentTicketProps {
 
 export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
   const [loading, setLoading] = useState(false);
+  const [replayLoading, setReplayLoading] = useState(false);
   const [showSkipDialog, setShowSkipDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
+  const [isAutoCallPending, setIsAutoCallPending] = useState(false);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const isMountedRef = useRef(true);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      isMountedRef.current = false;
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
     };
   }, []);
 
-  async function handleCallNext() {
-    setLoading(true);
+  async function handleReplayAnnouncement() {
+    if (!ticket || replayLoading) return;
+
+    setReplayLoading(true);
+    try {
+      await ttsService.announceTicket(
+        ticket.ticket_number,
+        counter.name
+      );
+      toast.success('Announcement replayed');
+    } catch (error) {
+      console.error('Error replaying announcement:', error);
+      toast.error('Failed to replay announcement');
+    } finally {
+      setReplayLoading(false);
+    }
+  }
+
+  async function handleCallNext(isAutoCall = false) {
+    // Only set loading if this is a manual call, not auto-call from Complete/Skip
+    if (!isAutoCall) {
+      setLoading(true);
+    }
+    
     try {
       // Call next ticket for any service (counter handles all services)
       const nextTicket = await callNextTicket('', counter.id);
       
       if (nextTicket) {
         toast.success(`Called ticket ${nextTicket.ticket_number}`);
+        // Clear any existing timeout before creating new one
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+        // Keep loading state for a bit to allow real-time updates
+        timeoutRef.current = setTimeout(() => {
+          setLoading(false);
+          timeoutRef.current = null; // Clear reference
+        }, 1000);
       } else {
         toast.info('No tickets in queue');
+        setLoading(false);
       }
     } catch (error: any) {
       console.error('Error calling next ticket:', error);
       toast.error(error.message || 'Failed to call next ticket');
-    } finally {
       setLoading(false);
     }
   }
 
   async function handleComplete() {
-    if (!ticket || loading) return;
+    console.log(' COMPLETE: Starting complete workflow', {ticket});
+    if (!ticket || loading) {
+      console.log(' COMPLETE: Blocked - no ticket or already loading', {ticket: !!ticket, loading});
+      return;
+    }
 
     // Validate ticket is still serving
     if (ticket.status !== 'serving') {
+      console.log(' COMPLETE: Ticket not serving', ticket.status);
       toast.error('Ticket is no longer being served');
       return;
     }
 
+    console.log(' COMPLETE: Starting update to done status');
     setLoading(true);
     try {
-      await updateTicketStatus(ticket.id, 'done');
+      console.log(' COMPLETE: Calling updateTicketStatus API...');
+      const result = await updateTicketStatus(ticket.id, 'done');
+      console.log(' COMPLETE: API response:', result);
       toast.success('Ticket completed');
       
       // Clear any existing timeout
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        console.log(' COMPLETE: Cleared existing timeout');
       }
       
       // Automatically call next ticket with cleanup
-      timeoutRef.current = setTimeout(() => {
-        if (isMountedRef.current) {
-          handleCallNext();
-        }
+      console.log(' COMPLETE: Setting timeout for auto-call next (500ms)');
+      setIsAutoCallPending(true); // Prevent component from showing "No ticket" state
+      timeoutRef.current = setTimeout(async () => {
+        console.log(' COMPLETE: Auto-calling next ticket...');
+        await handleCallNext(true); // Pass true to indicate auto-call
+        setIsAutoCallPending(false); // Allow normal state now
       }, 500);
     } catch (error: any) {
-      console.error('Error completing ticket:', error);
+      console.error(' COMPLETE: Error in workflow:', error);
       toast.error(error.message || 'Failed to complete ticket');
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
+      // Reset loading on error only
+      setLoading(false);
     }
+    // Note: Loading state managed by handleCallNext when auto-calling
   }
 
   async function handleSkip() {
@@ -118,19 +160,19 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
       }
       
       // Automatically call next ticket with cleanup
-      timeoutRef.current = setTimeout(() => {
-        if (isMountedRef.current) {
-          handleCallNext();
-        }
+      setIsAutoCallPending(true); // Prevent component from showing "No ticket" state
+      timeoutRef.current = setTimeout(async () => {
+        console.log(' SKIP: Auto-calling next ticket...');
+        await handleCallNext(true); // Pass true to indicate auto-call
+        setIsAutoCallPending(false); // Allow normal state now
       }, 500);
     } catch (error: any) {
       console.error('Error skipping ticket:', error);
       toast.error(error.message || 'Failed to skip ticket');
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
+      // Reset loading on error only
+      setLoading(false);
     }
+    // Note: Loading state managed by handleCallNext when auto-calling
   }
 
   async function handleCancel() {
@@ -148,14 +190,26 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
       await updateTicketStatus(ticket.id, 'cancelled');
       toast.info('Ticket cancelled');
       setShowCancelDialog(false);
+      
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      
+      // Automatically call next ticket with cleanup
+      setIsAutoCallPending(true); // Prevent component from showing "No ticket" state
+      timeoutRef.current = setTimeout(async () => {
+        console.log(' CANCEL: Auto-calling next ticket...');
+        await handleCallNext(true); // Pass true to indicate auto-call
+        setIsAutoCallPending(false); // Allow normal state now
+      }, 500);
     } catch (error: any) {
       console.error('Error cancelling ticket:', error);
       toast.error(error.message || 'Failed to cancel ticket');
-    } finally {
-      if (isMountedRef.current) {
-        setLoading(false);
-      }
+      // Reset loading on error only
+      setLoading(false);
     }
+    // Note: Loading state managed by handleCallNext when auto-calling
   }
 
   const serviceTime = ticket?.started_at
@@ -172,7 +226,7 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
           </CardTitle>
         </CardHeader>
         <CardContent className="bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6">
-          {!ticket ? (
+          {!ticket && !isAutoCallPending ? (
             <div className="py-16 text-center">
               <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-gray-100">
                 <User className="h-10 w-10 text-gray-400" />
@@ -199,6 +253,16 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
                   </>
                 )}
               </Button>
+            </div>
+          ) : !ticket && isAutoCallPending ? (
+            <div className="py-16 text-center">
+              <div className="mx-auto mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-blue-100">
+                <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900">Processing...</h3>
+              <p className="mt-2 text-gray-500">
+                Calling next ticket automatically
+              </p>
             </div>
           ) : (
             <div className="space-y-6">
@@ -240,10 +304,36 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
                   </div>
                 </div>
 
-                {ticket.priority_level > 0 && (
+                {/* {ticket.priority_level > 0 && (
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-gray-500">Priority</span>
                     <Badge variant="destructive">High Priority</Badge>
+                  </div>
+                )} */}
+
+
+  
+
+          {
+            ticket.priority_level === 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-gray-500">Priority</span>
+                <Badge variant="info">Regular</Badge>
+              </div>
+            )
+          }
+
+                {ticket.priority_level === 1 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Priority</span>
+                    <Badge variant="info">Senior/PWD</Badge>
+                  </div>
+                )}
+
+                {ticket.priority_level === 2 && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-500">Priority</span>
+                    <Badge variant="destructive">EMERGENCY</Badge>
                   </div>
                 )}
 
@@ -255,37 +345,61 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
               </div>
 
               {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  size="lg"
-                  onClick={handleComplete}
-                  disabled={loading}
-                  className="bg-green-600 hover:bg-green-700"
-                >
-                  <CheckCircle className="mr-2 h-5 w-5" />
-                  Complete
-                </Button>
-
+              <div className="space-y-3">
+                {/* Replay Announcement Button */}
                 <Button
                   size="lg"
                   variant="outline"
-                  onClick={() => setShowSkipDialog(true)}
-                  disabled={loading}
+                  onClick={handleReplayAnnouncement}
+                  disabled={loading || replayLoading}
+                  className="w-full border-2 border-blue-500 text-blue-600 hover:bg-blue-50"
                 >
-                  <SkipForward className="mr-2 h-5 w-5" />
-                  Skip
+                  {replayLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Playing...
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="mr-2 h-5 w-5" />
+                      🔊 Replay Announcement
+                    </>
+                  )}
                 </Button>
 
-                <Button
-                  size="lg"
-                  variant="destructive"
-                  onClick={() => setShowCancelDialog(true)}
-                  disabled={loading}
-                  className="col-span-2"
-                >
-                  <XCircle className="mr-2 h-5 w-5" />
-                  Cancel Ticket
-                </Button>
+                {/* Main Action Buttons */}
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    size="lg"
+                    onClick={handleComplete}
+                    disabled={loading}
+                    className="bg-green-600 hover:bg-green-700"
+                  >
+                    <CheckCircle className="mr-2 h-5 w-5" />
+                    Complete
+                  </Button>
+
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    onClick={() => setShowSkipDialog(true)}
+                    disabled={loading}
+                  >
+                    <SkipForward className="mr-2 h-5 w-5" />
+                    Skip
+                  </Button>
+
+                  <Button
+                    size="lg"
+                    variant="destructive"
+                    onClick={() => setShowCancelDialog(true)}
+                    disabled={loading}
+                    className="col-span-2"
+                  >
+                    <XCircle className="mr-2 h-5 w-5" />
+                    Cancel Ticket
+                  </Button>
+                </div>
               </div>
             </div>
           )}
