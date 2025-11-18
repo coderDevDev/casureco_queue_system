@@ -9,6 +9,7 @@ import { Counter, TicketWithDetails } from '@/types/queue';
 import { getCounterByStaff } from '@/lib/services/counter-service';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { useQueueStore } from '@/lib/stores/queue-store';
+import { useTransferNotifications } from '@/lib/hooks/use-transfer-notifications';
 
 export default function StaffDashboard() {
   const { profile } = useAuth();
@@ -17,6 +18,13 @@ export default function StaffDashboard() {
   const [loading, setLoading] = useState(true);
   const [displayedTicket, setDisplayedTicket] = useState<TicketWithDetails | undefined>(undefined);
   const displayedTicketIdRef = useRef<string | null>(null);
+
+  // Enable transfer notifications
+  useTransferNotifications({
+    tickets,
+    currentCounterId: counter?.id,
+    enabled: !!counter?.id,
+  });
 
   // Move useEffect before any conditional returns
   useEffect(() => {
@@ -109,13 +117,23 @@ export default function StaffDashboard() {
   );
   console.log('🖥️ Displayed ticket:', displayedTicket?.ticket_number || 'none');
 
+  // Handle transfer completion - tickets will auto-refresh via real-time subscription
+  function handleTransferComplete() {
+    console.log('✅ Ticket transferred successfully');
+    // The useQueueStore subscription will automatically update the tickets
+  }
+
   return (
     <div className="space-y-6">
       <StatsCards stats={stats} counter={counter} />
       
       <div className="grid gap-6 lg:grid-cols-2">
         <CurrentTicket key={counter.id} ticket={displayedTicket} counter={counter} />
-        <QueueDisplay tickets={tickets} />
+        <QueueDisplay 
+          tickets={tickets} 
+          currentCounterId={counter.id}
+          onTransferComplete={handleTransferComplete} 
+        />
       </div>
     </div>
   );

@@ -31,6 +31,7 @@ const adminNavigation: NavigationItem[] = [
   { name: 'Services', href: '/admin/services', icon: Briefcase },
   { name: 'Counters', href: '/admin/counters', icon: Monitor },
   { name: 'Users', href: '/admin/users', icon: Users },
+  { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
   { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];

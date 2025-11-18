@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Volume2,Phone, User, Clock, CheckCircle, XCircle, SkipForward, Loader2 } from 'lucide-react';
+import { Volume2, Phone, User, Clock, CheckCircle, XCircle, SkipForward, Loader2, ArrowRightLeft } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,7 @@ import { callNextTicket, updateTicketStatus } from '@/lib/services/queue-service
 import { formatDuration } from '@/lib/utils';
 import { toast } from 'sonner';
 import { ttsService } from '@/lib/services/tts-service';
+import { TransferTicketDialog } from './transfer-ticket-dialog';
 
 interface CurrentTicketProps {
   ticket?: TicketWithDetails;
@@ -28,6 +29,7 @@ interface CurrentTicketProps {
 
 export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
   const [loading, setLoading] = useState(false);
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
   const [replayLoading, setReplayLoading] = useState(false);
   const [showSkipDialog, setShowSkipDialog] = useState(false);
   const [showCancelDialog, setShowCancelDialog] = useState(false);
@@ -312,16 +314,14 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
                 )} */}
 
 
-  
-
-          {
-            ticket.priority_level === 0 && (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-500">Priority</span>
-                <Badge variant="info">Regular</Badge>
-              </div>
-            )
-          }
+                {
+                  ticket.priority_level === 0 && (
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-500">Priority</span>
+                      <Badge variant="info">Regular</Badge>
+                    </div>
+                  )
+                }
 
                 {ticket.priority_level === 1 && (
                   <div className="flex items-center justify-between">
@@ -391,13 +391,24 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
 
                   <Button
                     size="lg"
+                    variant="outline"
+                    onClick={() => setTransferDialogOpen(true)}
+                    disabled={loading}
+                    className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                  >
+                    <ArrowRightLeft className="mr-2 h-5 w-5" />
+                    Transfer
+                  </Button>
+
+                  <Button
+                    size="lg"
                     variant="destructive"
                     onClick={() => setShowCancelDialog(true)}
                     disabled={loading}
                     className="col-span-2"
                   >
                     <XCircle className="mr-2 h-5 w-5" />
-                    Cancel Ticket
+                    Cancel
                   </Button>
                 </div>
               </div>
@@ -447,6 +458,20 @@ export function CurrentTicket({ ticket, counter }: CurrentTicketProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Transfer Ticket Dialog */}
+      {ticket && (
+        <TransferTicketDialog
+          ticket={ticket}
+          open={transferDialogOpen}
+          onOpenChange={setTransferDialogOpen}
+          onTransferComplete={() => {
+            toast.success('Ticket transferred - will be re-announced at target counter');
+            // The real-time subscription will handle the UI update
+          }}
+          currentCounterId={counter.id}
+        />
+      )}
     </>
   );
 }

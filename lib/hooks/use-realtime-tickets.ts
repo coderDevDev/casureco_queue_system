@@ -35,7 +35,7 @@ export function useRealtimeTickets(options: UseRealtimeTicketsOptions) {
             `
             *,
             service:services(*),
-            counter:counters(*)
+            counter:counters!tickets_counter_id_fkey(*)
           `
           )
           .eq('branch_id', options.branchId);
@@ -86,7 +86,7 @@ export function useRealtimeTickets(options: UseRealtimeTicketsOptions) {
                   `
                   *,
                   service:services(*),
-                  counter:counters(*)
+                  counter:counters!tickets_counter_id_fkey(*)
                 `
                 )
                 .eq('id', payload.new.id)
@@ -104,7 +104,7 @@ export function useRealtimeTickets(options: UseRealtimeTicketsOptions) {
                   `
                   *,
                   service:services(*),
-                  counter:counters(*)
+                  counter:counters!tickets_counter_id_fkey(*)
                 `
                 )
                 .eq('id', payload.new.id)

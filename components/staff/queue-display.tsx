@@ -1,17 +1,39 @@
 'use client';
 
-import { Clock, Users, User, AlertCircle } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, Users, User, AlertCircle, ArrowRightLeft, ArrowRight, ArrowLeft, Info } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { TicketWithDetails } from '@/types/queue';
 import { formatDuration } from '@/lib/utils';
+import { TransferTicketDialog } from './transfer-ticket-dialog';
 
 interface QueueDisplayProps {
   tickets: TicketWithDetails[];
+  currentCounterId?: string;
+  onTransferComplete?: () => void;
 }
 
-export function QueueDisplay({ tickets }: QueueDisplayProps) {
+export function QueueDisplay({ tickets, currentCounterId, onTransferComplete }: QueueDisplayProps) {
+  const [transferDialogOpen, setTransferDialogOpen] = useState(false);
+  const [selectedTicket, setSelectedTicket] = useState<TicketWithDetails | null>(null);
   const waitingTickets = tickets.filter((t) => t.status === 'waiting');
+
+  function handleTransferClick(ticket: TicketWithDetails) {
+    setSelectedTicket(ticket);
+    setTransferDialogOpen(true);
+  }
+
+  function handleTransferComplete() {
+    onTransferComplete?.();
+  }
 
   return (
     <Card className="border-0 shadow-xl overflow-hidden">
@@ -42,6 +64,7 @@ export function QueueDisplay({ tickets }: QueueDisplayProps) {
               return (
                 <div
                   key={ticket.id}
+                  id={`ticket-${ticket.id}`}
                   className="group flex items-center justify-between rounded-xl border-2 border-gray-200 bg-white p-4 transition-all duration-200 hover:border-[#0033A0] hover:shadow-md"
                 >
                   <div className="flex items-center gap-4">
@@ -63,15 +86,77 @@ export function QueueDisplay({ tickets }: QueueDisplayProps) {
                             EMERGENCY
                           </Badge>
                         )}
+                        {/* Show badge if ticket was transferred TO this counter */}
+                        {ticket.preferred_counter_id === currentCounterId && ticket.transferred_from_counter_id && (
+                          <Badge className="bg-blue-500 text-white text-xs">
+                            <ArrowLeft className="mr-1 h-3 w-3" />
+                            Transferred In
+                          </Badge>
+                        )}
+                        {/* Show badge if ticket was transferred FROM this counter */}
+                        {ticket.transferred_from_counter_id === currentCounterId && ticket.preferred_counter_id !== currentCounterId && (
+                          <Badge className="bg-orange-500 text-white text-xs">
+                            <ArrowRight className="mr-1 h-3 w-3" />
+                            Transferred Out
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-gray-500">
                         {ticket.service?.name || 'Unknown Service'}
                       </p>
+                      {/* Show transfer info for tickets transferred from this counter */}
+                      {ticket.transferred_from_counter_id === currentCounterId && ticket.preferred_counter_id !== currentCounterId && (
+                        <p className="text-xs text-orange-600 italic mt-1">
+                          → Sent to another counter
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2">
-                    <Clock className="h-4 w-4 text-blue-600" />
-                    <span className="text-sm font-medium text-blue-900">{formatDuration(waitTime)}</span>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-3 py-2">
+                      <Clock className="h-4 w-4 text-blue-600" />
+                      <span className="text-sm font-medium text-blue-900">{formatDuration(waitTime)}</span>
+                    </div>
+                    
+                    {/* Show info button for transferred tickets */}
+                    {(ticket.transferred_from_counter_id || ticket.preferred_counter_id) && ticket.transferred_at && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 w-8 p-0 text-gray-500 hover:text-blue-600"
+                            >
+                              <Info className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <div className="space-y-1 text-xs">
+                              <p className="font-semibold">Transfer Details</p>
+                              {ticket.transfer_reason && (
+                                <p className="text-gray-600">
+                                  <span className="font-medium">Reason:</span> {ticket.transfer_reason}
+                                </p>
+                              )}
+                              <p className="text-gray-600">
+                                <span className="font-medium">When:</span>{' '}
+                                {new Date(ticket.transferred_at).toLocaleString()}
+                              </p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleTransferClick(ticket)}
+                      className="border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <ArrowRightLeft className="h-4 w-4" />
+                    </Button>
                   </div>
                 </div>
               );
@@ -79,6 +164,15 @@ export function QueueDisplay({ tickets }: QueueDisplayProps) {
           </div>
         )}
       </CardContent>
+
+      {/* Transfer Dialog */}
+      <TransferTicketDialog
+        ticket={selectedTicket}
+        open={transferDialogOpen}
+        onOpenChange={setTransferDialogOpen}
+        onTransferComplete={handleTransferComplete}
+        currentCounterId={currentCounterId}
+      />
     </Card>
   );
 }

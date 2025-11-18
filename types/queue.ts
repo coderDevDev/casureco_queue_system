@@ -31,3 +31,10 @@ export interface CreateTicketParams {
   customer_phone?: string;
   notes?: string;
 }
+
+export interface TransferTicketParams {
+  ticket_id: string;
+  target_counter_id: string;
+  reason?: string;
+  transferred_by: string;
+}

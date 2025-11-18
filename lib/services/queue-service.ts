@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
-import { CreateTicketParams, Ticket, TicketWithDetails, QueueStats } from '@/types/queue';
+import { CreateTicketParams, Ticket, TicketWithDetails, QueueStats, TransferTicketParams } from '@/types/queue';
 
 /**
  * Create a new ticket in the queue
@@ -65,7 +65,7 @@ export async function getTicket(ticketId: string): Promise<TicketWithDetails | n
       `
       *,
       service:services(*),
-      counter:counters(*)
+      counter:counters!tickets_counter_id_fkey(*)
     `
     )
     .eq('id', ticketId)
@@ -94,7 +94,7 @@ export async function getWaitingTickets(
       `
       *,
       service:services(*),
-      counter:counters(*)
+      counter:counters!tickets_counter_id_fkey(*)
     `
     )
     .eq('service_id', serviceId)
@@ -131,7 +131,7 @@ export async function getTickets(
       `
       *,
       service:services(*),
-      counter:counters(*)
+      counter:counters!tickets_counter_id_fkey(*)
     `
     )
     .eq('branch_id', branchId);
@@ -273,29 +273,29 @@ export async function updateTicketStatus(
 /**
  * Transfer ticket to another counter
  */
-export async function transferTicket(
-  ticketId: string,
-  newCounterId: string
-): Promise<Ticket | null> {
-  const supabase = createClient();
+// export async function transferTicket(
+//   ticketId: string,
+//   newCounterId: string
+// ): Promise<Ticket | null> {
+//   const supabase = createClient();
 
-  const { data, error } = await supabase
-    .from('tickets')
-    .update({
-      counter_id: newCounterId,
-      status: 'waiting',
-    })
-    .eq('id', ticketId)
-    .select()
-    .single();
+//   const { data, error } = await supabase
+//     .from('tickets')
+//     .update({
+//       counter_id: newCounterId,
+//       status: 'waiting',
+//     })
+//     .eq('id', ticketId)
+//     .select()
+//     .single();
 
-  if (error) {
-    console.error('Error transferring ticket:', error);
-    return null;
-  }
+//   if (error) {
+//     console.error('Error transferring ticket:', error);
+//     return null;
+//   }
 
-  return data;
-}
+//   return data;
+// }
 
 /**
  * Get queue position for a ticket
@@ -376,4 +376,85 @@ export async function cancelTicket(ticketId: string): Promise<boolean> {
   }
 
   return true;
+}
+
+/**
+ * Transfer a waiting ticket to a different counter
+ */
+export async function transferTicket(
+  params: TransferTicketParams
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = createClient();
+
+  try {
+    // 1. Get the ticket to validate
+    const { data: ticket, error: fetchError } = await supabase
+      .from('tickets')
+      .select('*, service:services(id), counter:counters!tickets_counter_id_fkey(id)')
+      .eq('id', params.ticket_id)
+      .single();
+
+    if (fetchError || !ticket) {
+      return { success: false, error: 'Ticket not found' };
+    }
+
+    // 2. Validate ticket status (allow waiting or serving)
+    if (ticket.status !== 'waiting' && ticket.status !== 'serving') {
+      return { success: false, error: 'Can only transfer waiting or serving tickets' };
+    }
+
+    // 3. Get target counter to validate
+    const { data: targetCounter, error: counterError } = await supabase
+      .from('counters')
+      .select('id, is_active, branch_id')
+      .eq('id', params.target_counter_id)
+      .single();
+
+    if (counterError || !targetCounter) {
+      return { success: false, error: 'Target counter not found' };
+    }
+
+    // 4. Validate counter is active
+    if (!targetCounter.is_active) {
+      return { success: false, error: 'Target counter is not active' };
+    }
+
+    // 5. Validate same branch
+    if (targetCounter.branch_id !== ticket.branch_id) {
+      return { success: false, error: 'Cannot transfer to counter in different branch' };
+    }
+
+    // 6. Update ticket with transfer information
+    const updateData: any = {
+      preferred_counter_id: params.target_counter_id,
+      transfer_reason: params.reason || 'Workload balancing',
+      transferred_from_counter_id: ticket.counter_id,
+      transferred_at: new Date().toISOString(),
+      transferred_by: params.transferred_by,
+    };
+
+    // If transferring a serving ticket, reset it to waiting
+    // This ensures proper re-announcement and time tracking at the new counter
+    if (ticket.status === 'serving') {
+      updateData.status = 'waiting';
+      updateData.started_at = null; // Reset start time
+      updateData.called_at = null; // Reset call time
+      // Keep counter_id as is (will be updated when called at new counter)
+    }
+
+    const { error: updateError } = await supabase
+      .from('tickets')
+      .update(updateData)
+      .eq('id', params.ticket_id);
+
+    if (updateError) {
+      console.error('Error updating ticket:', updateError);
+      return { success: false, error: 'Failed to transfer ticket' };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error in transferTicket:', error);
+    return { success: false, error: 'An unexpected error occurred' };
+  }
 }
