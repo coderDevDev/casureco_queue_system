@@ -32,7 +32,7 @@ export default function AdminLayout({
   return (
     <div className="flex h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* Sidebar */}
-      <AdminSidebar />
+      <AdminSidebar role={profile!.role as 'admin' | 'staff' | 'supervisor'} />
       
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">

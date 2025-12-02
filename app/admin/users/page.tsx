@@ -125,50 +125,36 @@ export default function UsersPage() {
         if (error) throw error;
         toast.success('User updated successfully');
       } else {
-        // Create new user with Supabase Auth
+        // Create new user via API route (uses service role key)
         const createData = data as CreateUserFormData;
 
-        // Create auth user using admin API
-        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: createData.email,
-          password: createData.password,
-          user_metadata: {
+        const response = await fetch('/api/admin/users', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: createData.email,
+            password: createData.password,
             name: createData.name,
             role: createData.role,
             branch_id: createData.branch_id || null,
             is_active: createData.is_active
-          },
-          email_confirm: true
+          }),
         });
 
-        if (authError) {
-          toast.error(authError.message);
+        const result = await response.json();
+
+        if (!response.ok) {
+          const errorMsg = result.details 
+            ? `${result.error}: ${result.details}` 
+            : result.error || 'Failed to create user';
+          console.error('User creation error:', result);
+          toast.error(errorMsg);
           return;
         }
 
-        if (!authData.user) {
-          toast.error('Failed to create user');
-          return;
-        }
-
-        // Create user profile
-        const { error: profileError } = await supabase
-          .from('users')
-          .insert({
-            id: authData.user.id,
-            name: createData.name,
-            email: createData.email,
-            role: createData.role,
-            branch_id: createData.branch_id || null,
-            is_active: createData.is_active
-          });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          toast.warning('User created but profile setup incomplete');
-        } else {
-          toast.success('User created successfully!');
-        }
+        toast.success('User created successfully!');
       }
 
       setShowDialog(false);

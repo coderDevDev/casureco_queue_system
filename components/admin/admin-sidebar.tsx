@@ -39,6 +39,14 @@ const adminNavigation: NavigationItem[] = [
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
+const supervisorNavigation: NavigationItem[] = [
+  { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { name: 'Services', href: '/admin/services', icon: Briefcase },
+  { name: 'Counters', href: '/admin/counters', icon: Monitor },
+  { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+  { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
+];
+
 const staffNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/staff', icon: LayoutDashboard },
   { name: 'My Queue', href: '/staff/queue', icon: Ticket },
@@ -55,11 +63,14 @@ export function AdminSidebar({ role = 'admin' }: AdminSidebarProps) {
   const { branding } = useBranding();
   
   // Determine navigation based on role
-  const navigation = role === 'admin' || role === 'supervisor' ? adminNavigation : staffNavigation;
+  const navigation = 
+    role === 'admin' ? adminNavigation :
+    role === 'supervisor' ? supervisorNavigation :
+    staffNavigation;
   const roleLabel = role === 'admin' ? 'Admin Panel' : role === 'supervisor' ? 'Supervisor Panel' : 'Staff Panel';
 
 
-  console.log({branding})
+  console.log({role})
   return (
     <div className="flex h-screen w-72 flex-col bg-gradient-to-b from-[#0033A0] to-[#1A237E] shadow-2xl">
       {/* Logo & Brand */}
