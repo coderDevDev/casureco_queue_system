@@ -27,7 +27,7 @@ interface NavigationItem {
 
 const adminNavigation: NavigationItem[] = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
-  { name: 'Branches', href: '/admin/branches', icon: Building2 },
+  // { name: 'Branches', href: '/admin/branches', icon: Building2 },
   { name: 'Services', href: '/admin/services', icon: Briefcase },
   { name: 'Counters', href: '/admin/counters', icon: Monitor },
   { name: 'Users', href: '/admin/users', icon: Users },
@@ -63,7 +63,7 @@ export function AdminSidebar({ role = 'admin' }: AdminSidebarProps) {
         </div>
         <div>
           <h1 className="text-xl font-bold text-white">CASURECO II</h1>
-          <p className="text-xs text-white/60">Queue Management</p>
+          <p className="text-xs text-white/60">Queue Management System</p>
         </div>
       </div>
 

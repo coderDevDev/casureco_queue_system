@@ -1,0 +1,69 @@
+Layout C — Split Screen + Header + DateTime (Final Layout)
++-------------------------------------------------------------+
+|  [ LOGO / OFFICE NAME / HEADER TITLE ]     [ DATE | TIME ]  |
++-------------------------------------------------------------+
+|                         |                                   |
+|     NOW SERVING         |           [ VIDEO AREA ]          |
+|  ┌────────────────────┐ |                                   |
+|  | A-102 — Counter 3  | |                                   |
+|  | B-205 — Counter 1  | |                                   |
+|  | C-014 — Counter 5  | |                                   |
+|  | D-301 — Counter 2  | |                                   |
+|  | E-118 — Counter 4  | |                                   |
+|  └────────────────────┘ |                                   |
+|                         |                                   |
++-------------------------------------------------------------+
+| >>>>>>>>>>>>>>>  SCROLLING ANNOUNCEMENTS / TICKER  >>>>>>> |
++-------------------------------------------------------------+
+
+
+
+
+📌 UX Breakdown
+Header Left
+
+Office or department name
+
+Logo
+
+“Now Serving” system title
+
+Clean and authority-consistent
+
+Date/Time Right
+
+Use 24-hour format or configurable
+
+Large enough to see across the room
+
+Good for offices with scheduled appointments
+
+Left Panel (Queue List)
+
+Large bold queue numbers
+
+Smaller counter numbers
+
+Most recent/active ticket highlighted in green
+
+Upcoming tickets in blue/gray
+
+Optional blinking or gentle pulse animation for active ticket
+
+Right Panel (Video)
+
+Autoloop videos
+
+16:9 or 4:3 depending on your monitor
+
+Rounded corners for modern look
+
+Avoid text overlays inside the video (keep clean)
+
+Bottom Ticker
+
+Direction: → scrolling left
+
+Speed: slow (news broadcast style)
+
+Can include: announcements, public reminders, schedules, greetings

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Printer, Home } from 'lucide-react';
 import { formatDate, formatDuration } from '@/lib/utils';
 import { getQueuePosition, calculateWaitTime } from '@/lib/services/queue-service';
+import { useBranding } from '@/lib/hooks/use-branding';
 
 interface TicketPrintProps {
   ticket: any;
@@ -13,6 +14,7 @@ interface TicketPrintProps {
 }
 
 export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
+  const { branding } = useBranding();
   const [queuePosition, setQueuePosition] = useState<number | null>(null);
   const [estimatedWait, setEstimatedWait] = useState<number>(0);
   const [countdown, setCountdown] = useState(15);
@@ -61,12 +63,24 @@ export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
         </p>
       </div>
 
-      <Card className="mb-6 border-4 border-blue-500 shadow-2xl" ref={printRef}>
+      <Card 
+        className="mb-6 border-4 shadow-2xl" 
+        style={{ borderColor: branding.ticket_border_color }}
+        ref={printRef}
+      >
         <CardContent className="p-8">
           {/* Ticket Header */}
           <div className="border-b-2 border-dashed pb-6 text-center">
+            {branding.show_logo_on_ticket && branding.logo_url && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={branding.logo_url}
+                alt="Company Logo"
+                className="h-20 w-auto mx-auto mb-4 object-contain"
+              />
+            )}
             <h3 className="text-xl font-semibold text-gray-700">
-              {process.env.NEXT_PUBLIC_APP_NAME || 'NAGA Queue System'}
+              {branding.company_name}
             </h3>
             <p className="text-sm text-gray-500">{formatDate(new Date())}</p>
           </div>
@@ -74,7 +88,10 @@ export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
           {/* Ticket Number */}
           <div className="my-8 text-center">
             <p className="text-lg font-medium text-gray-600">Your Ticket Number</p>
-            <p className="mt-2 text-7xl font-bold text-blue-600">
+            <p 
+              className="mt-2 text-7xl font-bold"
+              style={{ color: branding.primary_color }}
+            >
               {ticket.ticket_number}
             </p>
           </div>
@@ -109,13 +126,21 @@ export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
           </div>
 
           {/* QR Code Placeholder */}
-          <div className="mt-6 border-t-2 border-dashed pt-6 text-center">
-            <div className="mx-auto h-32 w-32 rounded-lg bg-gray-100 flex items-center justify-center">
-              <span className="text-xs text-gray-400">QR Code</span>
+          {branding.show_qr_code && (
+            <div className="mt-6 border-t-2 border-dashed pt-6 text-center">
+              <div className="mx-auto h-32 w-32 rounded-lg bg-gray-100 flex items-center justify-center">
+                <span className="text-xs text-gray-400">QR Code</span>
+              </div>
+              <p className="mt-2 text-xs text-gray-500">
+                Scan to check status
+              </p>
             </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Scan to check status
-            </p>
+          )}
+
+          {/* Custom Footer Text */}
+          <div className="mt-4 text-center space-y-1">
+            <p className="text-sm text-gray-700 font-medium">{branding.ticket_header_text}</p>
+            <p className="text-xs text-gray-500">{branding.ticket_footer_text}</p>
           </div>
         </CardContent>
       </Card>

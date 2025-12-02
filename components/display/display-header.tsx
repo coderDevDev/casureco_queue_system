@@ -16,14 +16,15 @@ export function DisplayHeader() {
   }, []);
 
   return (
-    <header className="relative overflow-hidden bg-gradient-to-r from-[#0033A0] to-[#1A237E] shadow-2xl">
+    <header className="relative overflow-hidden 
+    bg-gradient-to-r from-[#0033A0] to-[#1A237E] shadow-2xl">
       {/* Decorative Elements */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-yellow-400 blur-3xl" />
         <div className="absolute left-0 bottom-0 h-40 w-40 rounded-full bg-white blur-3xl" />
       </div>
       
-      <div className="container relative mx-auto flex h-24 items-center justify-between px-6">
+      <div className=" relative  flex h-24 items-center justify-between px-6">
         <div className="flex items-center gap-4">
           <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur-sm">
             <Zap className="h-8 w-8 text-yellow-400" />
@@ -32,7 +33,7 @@ export function DisplayHeader() {
             <h1 className="text-3xl font-bold text-white">
               CASURECO II
             </h1>
-            <p className="text-sm font-medium text-white/70">Queue Management Display</p>
+            <p className="text-sm font-medium text-white/70">Queue Management System</p>
           </div>
         </div>
         

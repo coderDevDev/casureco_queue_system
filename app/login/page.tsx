@@ -1,134 +1,55 @@
-'use client';
-
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import { Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { signIn } from '@/lib/auth/auth-helpers';
-import { createClient } from '@/lib/supabase/client';
-import { toast } from 'sonner';
+import { LoginForm } from '@/components/login-form';
+import { Sparkles } from 'lucide-react';
 
 export default function LoginPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      const { error } = await signIn(email, password);
-
-      if (error) {
-        toast.error(error.message || 'Failed to sign in');
-      } else {
-        // Get user profile to determine role
-        const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (user) {
-          const { data: profile } = await supabase
-            .from('users')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-          
-          toast.success('Signed in successfully');
-          
-          // Redirect based on role
-          if (profile?.role === 'admin' || profile?.role === 'supervisor') {
-            router.push('/admin');
-          } else {
-            router.push('/staff');
-          }
-        } else {
-          router.push('/staff');
-        }
-      }
-    } catch (error) {
-      toast.error('An error occurred');
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 px-4">
-      <Card className="w-full max-w-md shadow-casureco-lg border-0">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Sign In</CardTitle>
-          <CardDescription>
-            Enter your credentials to access the staff dashboard
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
-                Email
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="staff@example.com"
-                required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+    <div className="flex min-h-screen flex-col">
+      <main className="flex-1 relative overflow-hidden bg-gradient-to-br from-gray-50 via-white to-blue-50">
+        {/* Background Blobs */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-96 h-96 bg-blue-300/20 rounded-full blur-3xl animate-float"></div>
+          <div
+            className="absolute top-40 right-20 w-72 h-72 bg-purple-300/15 rounded-full blur-3xl animate-float"
+            style={{ animationDelay: '2s' }}></div>
+          <div
+            className="absolute bottom-20 left-1/4 w-80 h-80 bg-pink-300/20 rounded-full blur-3xl animate-float"
+            style={{ animationDelay: '4s' }}></div>
+          <div
+            className="absolute bottom-40 right-1/3 w-64 h-64 bg-green-300/15 rounded-full blur-3xl animate-float"
+            style={{ animationDelay: '1s' }}></div>
+          <div
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-56 h-56 bg-yellow-300/10 rounded-full blur-3xl animate-float"
+            style={{ animationDelay: '3s' }}></div>
+        </div>
+
+        <div className="container relative mx-auto px-4 py-8 sm:py-12 md:py-16 lg:py-24 z-10">
+          <div className="max-w-md mx-auto relative z-20">
+            {/* Header Section */}
+            <div className="text-center mb-8">
+              {/* <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 text-sm font-medium border border-blue-200 mb-6">
+                <Sparkles className="h-4 w-4 text-blue-600" />
+                Welcome to CASURECO II Queue Management System
+              </div> */}
+
+              {/* <h1 className="text-3xl md:text-4xl font-bold mb-4">
+                <span className="bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                  Sign In to Your
+                </span>
+                <br />
+                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                  Account
+                </span>
+              </h1> */}
+
+              {/* <p className="text-gray-600 text-lg">
+                Access your personalized dashboard and manage your queue
+              </p> */}
             </div>
 
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                'Sign In'
-              )}
-            </Button>
-          </form>
-
-          {/* Test Credentials Info */}
-          <div className="mt-6 rounded-lg bg-blue-50 p-4">
-            <p className="text-sm font-medium text-blue-900 mb-3">Test Credentials:</p>
-            <div className="space-y-2 text-xs text-blue-700">
-              <div>
-                <p className="font-semibold">Admin:</p>
-                <p className="font-mono">admin@test.com / password123</p>
-              </div>
-              <div>
-                <p className="font-semibold">Staff 1:</p>
-                <p className="font-mono">staff1@test.com / password123</p>
-              </div>
-              <div>
-                <p className="font-semibold">Staff 2:</p>
-                <p className="font-mono">staff2@test.com / password123</p>
-              </div>
-            </div>
+            <LoginForm />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </main>
     </div>
   );
 }
