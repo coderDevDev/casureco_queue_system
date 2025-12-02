@@ -52,31 +52,31 @@ export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="mb-8 text-center">
-        <CheckCircle className="mx-auto h-20 w-20 text-green-500" />
-        <h2 className="mt-4 text-3xl font-bold text-gray-900">
+    <div className="mx-auto max-w-lg px-4">
+      <div className="mb-4 text-center">
+        <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
+        <h2 className="mt-3 text-2xl font-bold text-gray-900">
           Ticket Created Successfully!
         </h2>
-        <p className="mt-2 text-gray-600">
+        <p className="mt-1 text-sm text-gray-600">
           Please keep your ticket and wait for your number to be called
         </p>
       </div>
 
       <Card 
-        className="mb-6 border-4 shadow-2xl" 
+        className="mb-4 border-4 shadow-2xl" 
         style={{ borderColor: branding.ticket_border_color }}
         ref={printRef}
       >
-        <CardContent className="p-8">
+        <CardContent className="p-6">
           {/* Ticket Header */}
-          <div className="border-b-2 border-dashed pb-6 text-center">
+          <div className="border-b-2 border-dashed pb-4 text-center">
             {branding.show_logo_on_ticket && branding.logo_url && (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
                 src={branding.logo_url}
                 alt="Company Logo"
-                className="h-20 w-auto mx-auto mb-4 object-contain"
+                className="h-14 w-auto mx-auto mb-3 object-contain"
               />
             )}
             <h3 className="text-xl font-semibold text-gray-700">
@@ -86,10 +86,10 @@ export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
           </div>
 
           {/* Ticket Number */}
-          <div className="my-8 text-center">
-            <p className="text-lg font-medium text-gray-600">Your Ticket Number</p>
+          <div className="my-6 text-center">
+            <p className="text-base font-medium text-gray-600">Your Ticket Number</p>
             <p 
-              className="mt-2 text-7xl font-bold"
+              className="mt-2 text-6xl font-bold"
               style={{ color: branding.primary_color }}
             >
               {ticket.ticket_number}
@@ -97,7 +97,7 @@ export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
           </div>
 
           {/* Service Info */}
-          <div className="space-y-4 border-t-2 border-dashed pt-6">
+          <div className="space-y-3 border-t-2 border-dashed pt-4">
             <div className="flex justify-between">
               <span className="text-gray-600">Service:</span>
               <span className="font-semibold">{ticket.service?.name}</span>
@@ -126,43 +126,41 @@ export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
           </div>
 
           {/* QR Code Placeholder */}
-          {branding.show_qr_code && (
-            <div className="mt-6 border-t-2 border-dashed pt-6 text-center">
-              <div className="mx-auto h-32 w-32 rounded-lg bg-gray-100 flex items-center justify-center">
+          {/* {branding.show_qr_code && (
+            <div className="mt-4 border-t-2 border-dashed pt-4 text-center">
+              <div className="mx-auto h-24 w-24 rounded-lg bg-gray-100 flex items-center justify-center">
                 <span className="text-xs text-gray-400">QR Code</span>
               </div>
-              <p className="mt-2 text-xs text-gray-500">
+              <p className="mt-1 text-xs text-gray-500">
                 Scan to check status
               </p>
             </div>
-          )}
+          )} */}
 
           {/* Custom Footer Text */}
-          <div className="mt-4 text-center space-y-1">
-            <p className="text-sm text-gray-700 font-medium">{branding.ticket_header_text}</p>
+          <div className="mt-3 text-center space-y-0.5">
+            <p className="text-xs text-gray-700 font-medium">{branding.ticket_header_text}</p>
             <p className="text-xs text-gray-500">{branding.ticket_footer_text}</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Action Buttons */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <Button
-          size="lg"
           variant="outline"
           onClick={handlePrint}
-          className="text-lg"
+          className="h-12"
         >
-          <Printer className="mr-2 h-5 w-5" />
+          <Printer className="mr-2 h-4 w-4" />
           Print Ticket
         </Button>
 
         <Button
-          size="lg"
           onClick={onReset}
-          className="text-lg"
+          className="h-12"
         >
-          <Home className="mr-2 h-5 w-5" />
+          <Home className="mr-2 h-4 w-4" />
           Done ({countdown}s)
         </Button>
       </div>

@@ -23,11 +23,16 @@ import {
   EyeOff,
   ArrowRight,
   Loader2,
-  AlertCircle
+  AlertCircle,Clock,
+  Zap
 } from 'lucide-react';
+import { useBranding } from '@/lib/hooks/use-branding';
+
+
 
 export function LoginForm() {
   const router = useRouter();
+    const { branding } = useBranding();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -109,16 +114,48 @@ export function LoginForm() {
         <div className="relative z-10">
           <Card className="border-0 bg-transparent shadow-none">
             <CardHeader className="text-center pb-4 px-4 sm:pb-6 sm:px-6">
-              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-full px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border border-blue-200 mb-3 sm:mb-4">
+
+          
+              
+              {/* <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-50 to-purple-50 rounded-full px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium border border-blue-200 mb-3 sm:mb-4">
                 <Shield className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                  CASURECO II Queue Management System
-              </div>
-              <CardTitle className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                Access Your Account
+              </div> */}
+
+       <div className=" relative  flex h-24 items-center justify-between px-6">
+        <div className="flex items-center gap-4">
+          {branding.logo_url ? (
+            <div className="rounded-xl p-2 backdrop-blur-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={branding.logo_url}
+                alt={branding.company_name}
+                className="h-14 w-14 object-contain"
+              />
+            </div>
+          ) : (
+            <div className="rounded-xl p-2.5 backdrop-blur-sm">
+              <Zap className="h-8 w-8 text-yellow-400" />
+            </div>
+          )}
+         <div>
+            <h1 className="text-3xl font-bold">
+              {branding.company_name}
+            </h1>
+            <p className="text-sm font-medium">Queue Management System</p>
+          </div>
+        </div>
+        
+       
+      </div>
+              
+              <CardTitle className="text-xl sm:text-2xl 
+              font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                Sign In
               </CardTitle>
-              <CardDescription className="text-sm sm:text-base text-gray-600">
+              {/* <CardDescription className="text-sm sm:text-base text-gray-600">
                 Enter your credentials to access the staff dashboard
-              </CardDescription>
+              </CardDescription> */}
             </CardHeader>
 
             <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">

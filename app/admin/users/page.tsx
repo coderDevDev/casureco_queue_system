@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Users, Edit, Trash2, Search, Shield, Building2, Mail, User } from 'lucide-react';
+import { Plus, Users, Edit, Trash2, Search, Shield, Building2, Mail, User, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { UserForm } from '@/components/admin/user-form';
+import type { CreateUserFormData, UpdateUserFormData } from '@/lib/validations/user';
 
 interface AppUser {
   id: string;
@@ -32,16 +34,6 @@ interface Branch {
   name: string;
 }
 
-interface UserFormData {
-  name: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-  role: 'admin' | 'staff' | 'supervisor';
-  branch_id: string;
-  is_active: boolean;
-}
-
 export default function UsersPage() {
   const [users, setUsers] = useState<AppUser[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
@@ -50,15 +42,11 @@ export default function UsersPage() {
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [showDialog, setShowDialog] = useState(false);
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
-  const [formData, setFormData] = useState<UserFormData>({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'staff',
-    branch_id: '',
-    is_active: true
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sortField, setSortField] = useState<'name' | 'email' | 'role' | 'created_at'>('created_at');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -115,20 +103,21 @@ export default function UsersPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (data: CreateUserFormData | UpdateUserFormData) => {
     const supabase = createClient();
+    setIsSubmitting(true);
 
     try {
       if (editingUser) {
         // Update existing user
+        const updateData = data as UpdateUserFormData;
         const { error } = await supabase
           .from('users')
           .update({
-            name: formData.name,
-            role: formData.role,
-            branch_id: formData.branch_id || null,
-            is_active: formData.is_active,
+            name: updateData.name,
+            role: updateData.role,
+            branch_id: updateData.branch_id || null,
+            is_active: updateData.is_active,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingUser.id);
@@ -137,29 +126,19 @@ export default function UsersPage() {
         toast.success('User updated successfully');
       } else {
         // Create new user with Supabase Auth
-        // Validate passwords match
-        if (formData.password !== formData.confirmPassword) {
-          toast.error('Passwords do not match');
-          return;
-        }
+        const createData = data as CreateUserFormData;
 
-        // Validate password strength
-        if (formData.password.length < 8) {
-          toast.error('Password must be at least 8 characters');
-          return;
-        }
-
-        // Create auth user using admin API to avoid auto-signin
+        // Create auth user using admin API
         const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-          email: formData.email,
-          password: formData.password,
+          email: createData.email,
+          password: createData.password,
           user_metadata: {
-            name: formData.name,
-            role: formData.role,
-            branch_id: formData.branch_id || null,
-            is_active: formData.is_active
+            name: createData.name,
+            role: createData.role,
+            branch_id: createData.branch_id || null,
+            is_active: createData.is_active
           },
-          email_confirm: true // Skip email confirmation for admin-created users
+          email_confirm: true
         });
 
         if (authError) {
@@ -172,57 +151,48 @@ export default function UsersPage() {
           return;
         }
 
-        // Manually create the user profile since admin.createUser doesn't trigger the trigger
+        // Create user profile
         const { error: profileError } = await supabase
           .from('users')
           .insert({
             id: authData.user.id,
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            branch_id: formData.branch_id || null,
-            is_active: formData.is_active
+            name: createData.name,
+            email: createData.email,
+            role: createData.role,
+            branch_id: createData.branch_id || null,
+            is_active: createData.is_active
           });
 
         if (profileError) {
           console.error('Profile creation error:', profileError);
-          // User was created in auth but profile failed - this is recoverable
-          toast.warning('User created but profile setup incomplete. User may need to complete setup on first login.');
+          toast.warning('User created but profile setup incomplete');
+        } else {
+          toast.success('User created successfully!');
         }
-
-        toast.success('User created successfully!');
       }
 
       setShowDialog(false);
       setEditingUser(null);
-      resetForm();
       fetchData();
     } catch (error) {
       console.error('Error saving user:', error);
       toast.error('Failed to save user');
+      throw error;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEdit = (user: AppUser) => {
     setEditingUser(user);
-    setFormData({
-      name: user.name,
-      email: user.email,
-      password: '',
-      confirmPassword: '',
-      role: user.role,
-      branch_id: user.branch_id || '',
-      is_active: user.is_active
-    });
     setShowDialog(true);
   };
 
   const handleDelete = async (userId: string) => {
-    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
+    if (!confirm('Are you sure you want to deactivate this user?')) return;
 
     const supabase = createClient();
     try {
-      // Note: In production, you should deactivate rather than delete users
       const { error } = await supabase
         .from('users')
         .update({ is_active: false })
@@ -257,21 +227,8 @@ export default function UsersPage() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      role: 'staff',
-      branch_id: '',
-      is_active: true
-    });
-  };
-
   const openCreateDialog = () => {
     setEditingUser(null);
-    resetForm();
     setShowDialog(true);
   };
 
@@ -285,6 +242,56 @@ export default function UsersPage() {
     
     return matchesSearch && matchesRole;
   });
+
+  // Sort users
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    let aValue: string | number = '';
+    let bValue: string | number = '';
+
+    switch (sortField) {
+      case 'name':
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+        break;
+      case 'email':
+        aValue = a.email.toLowerCase();
+        bValue = b.email.toLowerCase();
+        break;
+      case 'role':
+        aValue = a.role;
+        bValue = b.role;
+        break;
+      case 'created_at':
+        aValue = new Date(a.created_at).getTime();
+        bValue = new Date(b.created_at).getTime();
+        break;
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(sortedUsers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedUsers = sortedUsers.slice(startIndex, endIndex);
+
+  const handleSort = (field: 'name' | 'email' | 'role' | 'created_at') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, roleFilter]);
 
   const getRoleBadge = (role: string) => {
     switch (role) {
@@ -302,11 +309,11 @@ export default function UsersPage() {
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'admin':
-        return <Shield className="h-5 w-5 text-red-600" />;
+        return <Shield className="h-5 w-5 text-white-600" />;
       case 'supervisor':
-        return <Users className="h-5 w-5 text-purple-600" />;
+        return <Users className="h-5 w-5 text-white-600" />;
       case 'staff':
-        return <User className="h-5 w-5 text-blue-600" />;
+        return <User className="h-5 w-5 text-white-600" />;
       default:
         return <User className="h-5 w-5 text-gray-600" />;
     }
@@ -352,167 +359,88 @@ export default function UsersPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900">Users</h1>
-          <p className="mt-2 text-lg text-gray-600">Manage system users and their roles</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-2">
+      {/* Clean Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Users Management
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Manage system users and their roles
+            </p>
+          </div>
+          <Button 
+            onClick={openCreateDialog}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add User
+          </Button>
         </div>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button 
-              className="bg-gradient-to-r from-[#0033A0] to-[#1A237E] hover:from-[#002080] hover:to-[#0d1554]"
-              onClick={openCreateDialog}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add User
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingUser ? 'Edit User' : 'Create New User'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter full name"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  placeholder="user@casureco2.com"
-                  required
-                  disabled={!!editingUser} // Disable email editing for existing users
-                />
-                {editingUser && (
-                  <p className="text-sm text-gray-500 mt-1">Email cannot be changed for existing users</p>
-                )}
-              </div>
-              {!editingUser && (
-                <>
-                  <div>
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={formData.password}
-                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="Enter password"
-                      required
-                      minLength={8}
-                    />
-                    <p className="text-sm text-gray-500 mt-1">Must be at least 8 characters</p>
-                  </div>
-                  <div>
-                    <Label htmlFor="confirmPassword">Confirm Password</Label>
-                    <Input
-                      id="confirmPassword"
-                      type="password"
-                      value={formData.confirmPassword}
-                      onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                      placeholder="Confirm password"
-                      required
-                      minLength={8}
-                    />
-                  </div>
-                </>
-              )}
-              <div>
-                <Label htmlFor="role">Role</Label>
-                <Select value={formData.role} onValueChange={(value: 'admin' | 'staff' | 'supervisor') => setFormData({ ...formData, role: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select user role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="staff">Staff</SelectItem>
-                    <SelectItem value="supervisor">Supervisor</SelectItem>
-                    <SelectItem value="admin">Administrator</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="branch">Branch (optional)</Label>
-                <Select value={formData.branch_id || 'no-branch'} onValueChange={(value) => setFormData({ ...formData, branch_id: value === 'no-branch' ? '' : value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="no-branch">No Branch</SelectItem>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="rounded"
-                />
-                <Label htmlFor="active">Active</Label>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="bg-gradient-to-r from-[#0033A0] to-[#1A237E]">
-                  {editingUser ? 'Update' : 'Create'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card 
+      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {statCards.map((stat, index) => (
+          <Card
             key={stat.title}
-            className="group relative overflow-hidden border-0 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+            className="group relative overflow-hidden border-0 bg-white shadow-md hover:shadow-xl transition-all duration-400 hover:-translate-y-1 rounded-xl animate-fade-in-up"
+            style={{ animationDelay: `${index * 100}ms` }}
           >
-            <div className={`absolute inset-0 opacity-5 ${stat.bgColor}`} />
-            
-            <CardHeader className="relative flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                {stat.title}
-              </CardTitle>
-              <div className={`rounded-xl p-3 ${stat.bgColor} transition-transform duration-300 group-hover:scale-110`}>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.bgColor} ${stat.color.replace('text-', 'from-')} to-transparent`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.bgColor} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
+
+            <CardContent className="relative p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div className={`rounded-xl p-2.5 ${stat.bgColor} transition-all duration-400 group-hover:scale-105 shadow`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+
+                <div className="text-right leading-tight">
+                  <div className="text-3xl font-bold bg-gradient-to-br from-gray-900 to-gray-600 bg-clip-text text-transparent mb-0.5 group-hover:scale-105 transition-transform duration-300">
+                    {stat.value}
+                  </div>
+                </div>
               </div>
-            </CardHeader>
-            
-            <CardContent className="relative">
-              <div className="text-4xl font-bold text-gray-900">{stat.value}</div>
-              <p className="mt-2 text-xs text-gray-500">Total count</p>
+
+              <div>
+                <p className="text-xs font-bold text-gray-800">{stat.title}</p>
+                <p className="text-[10px] text-gray-500">Current status</p>
+              </div>
             </CardContent>
-            
-            <div className={`absolute bottom-0 left-0 h-1 w-full ${stat.bgColor}`} />
           </Card>
         ))}
       </div>
 
-      {/* Search and Filters */}
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-6">
+      {/* Users List with Search and Filters */}
+      <Card className="bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg overflow-hidden">
+        <CardHeader className="border-b border-gray-200 bg-white/50 backdrop-blur-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-bold text-gray-900">System Users</CardTitle>
+              <p className="text-sm text-gray-600 mt-1">
+                Showing {startIndex + 1}-{Math.min(endIndex, sortedUsers.length)} of {sortedUsers.length} user{sortedUsers.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              setItemsPerPage(Number(value));
+              setCurrentPage(1);
+            }}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 per page</SelectItem>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="20">20 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Search Bar and Role Filter */}
           <div className="flex items-center gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -520,7 +448,7 @@ export default function UsersPage() {
                 placeholder="Search users by name, email, or branch..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
               />
             </div>
             <Select value={roleFilter} onValueChange={setRoleFilter}>
@@ -535,16 +463,9 @@ export default function UsersPage() {
               </SelectContent>
             </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Users List */}
-      <Card className="border-0 shadow-xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-[#0033A0] to-[#1A237E] text-white">
-          <CardTitle className="text-xl">System Users ({filteredUsers.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          {filteredUsers.length === 0 ? (
+          {sortedUsers.length === 0 ? (
             <div className="p-8 text-center">
               <Users className="mx-auto h-12 w-12 text-gray-400" />
               <p className="mt-2 text-gray-500">
@@ -554,71 +475,233 @@ export default function UsersPage() {
               </p>
             </div>
           ) : (
-            <div className="divide-y">
-              {filteredUsers.map((user) => (
-                <div key={user.id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#0033A0] to-[#1A237E] text-white">
-                        {getRoleIcon(user.role)}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
-                          {getRoleBadge(user.role)}
-                        </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                          <div className="flex items-center gap-1">
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50 hover:bg-gray-50">
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('name')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Name
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('email')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Email
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('role')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Role
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>Branch</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('created_at')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Joined
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedUsers.map((user, index) => (
+                      <TableRow key={user.id} className="hover:bg-blue-50/50">
+                        <TableCell className="font-medium text-gray-500">
+                          {startIndex + index + 1}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-sm">
+                              {getRoleIcon(user.role)}
+                            </div>
+                            <div>
+                              <div className="font-semibold text-gray-900">{user.name}</div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 text-gray-600">
                             <Mail className="h-4 w-4" />
                             {user.email}
                           </div>
-                          {user.branch && (
-                            <div className="flex items-center gap-1">
+                        </TableCell>
+                        <TableCell>
+                          {getRoleBadge(user.role)}
+                        </TableCell>
+                        <TableCell>
+                          {user.branch ? (
+                            <div className="flex items-center gap-1 text-gray-600">
                               <Building2 className="h-4 w-4" />
                               {user.branch.name}
                             </div>
+                          ) : (
+                            <span className="text-gray-400 text-sm">No branch</span>
                           )}
-                          <div className="text-xs">
-                            Joined: {new Date(user.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-sm text-gray-600">
+                          {new Date(user.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            className={user.is_active 
+                              ? 'bg-green-100 text-green-700 hover:bg-green-100' 
+                              : 'bg-red-100 text-red-700 hover:bg-red-100'
+                            }
+                          >
+                            {user.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => toggleUserStatus(user.id, user.is_active)}
+                              className="h-8"
+                            >
+                              {user.is_active ? 'Deactivate' : 'Activate'}
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleEdit(user)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                              onClick={() => handleDelete(user.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge 
-                        className={user.is_active 
-                          ? 'bg-green-100 text-green-700 hover:bg-green-100' 
-                          : 'bg-red-100 text-red-700 hover:bg-red-100'
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-4">
+                  <div className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
                         }
-                      >
-                        {user.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => toggleUserStatus(user.id, user.is_active)}
-                      >
-                        {user.is_active ? 'Deactivate' : 'Activate'}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(user)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-red-600 hover:text-red-700"
-                        onClick={() => handleDelete(user.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
                     </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog with Modern Form */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">
+              {editingUser ? 'Edit User' : 'Create New User'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[calc(90vh-120px)] px-1">
+            <UserForm
+              defaultValues={editingUser ? {
+                name: editingUser.name,
+                email: editingUser.email,
+                role: editingUser.role,
+                branch_id: editingUser.branch_id || '',
+                is_active: editingUser.is_active,
+              } : undefined}
+              branches={branches}
+              onSubmit={handleSubmit}
+              onCancel={() => setShowDialog(false)}
+              isSubmitting={isSubmitting}
+              isEditing={!!editingUser}
+              existingUsers={users.map(u => ({ 
+                id: u.id, 
+                email: u.email 
+              }))}
+              editingUserId={editingUser?.id}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

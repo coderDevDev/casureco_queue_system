@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Briefcase, Edit, Trash2, Search, Clock, Users } from 'lucide-react';
+import { Plus, Briefcase, Edit, Trash2, Search, Clock, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { ServiceForm } from '@/components/admin/service-form';
+import type { ServiceFormData } from '@/lib/validations/service';
 
 interface Service {
   id: string;
@@ -26,33 +28,18 @@ interface Service {
   updated_at: string;
 }
 
-interface ServiceFormData {
-  name: string;
-  prefix: string;
-  description: string;
-  avg_service_time: number;
-  color: string;
-  icon: string;
-  is_active: boolean;
-  branch_id: string;
-}
-
 export default function ServicesPage() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showDialog, setShowDialog] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
-  const [formData, setFormData] = useState<ServiceFormData>({
-    name: '',
-    prefix: '',
-    description: '',
-    avg_service_time: 300, // 5 minutes default
-    color: '#3b82f6',
-    icon: '',
-    is_active: true,
-    branch_id: ''
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sortField, setSortField] = useState<'name' | 'prefix' | 'avg_service_time' | 'created_at'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -95,9 +82,9 @@ export default function ServicesPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (data: ServiceFormData) => {
     const supabase = createClient();
+    setIsSubmitting(true);
 
     try {
       if (editingService) {
@@ -105,14 +92,7 @@ export default function ServicesPage() {
         const { error } = await supabase
           .from('services')
           .update({
-            name: formData.name,
-            prefix: formData.prefix,
-            description: formData.description,
-            avg_service_time: formData.avg_service_time,
-            color: formData.color,
-            icon: formData.icon,
-            is_active: formData.is_active,
-            branch_id: formData.branch_id,
+            ...data,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingService.id);
@@ -123,16 +103,7 @@ export default function ServicesPage() {
         // Create new service
         const { error } = await supabase
           .from('services')
-          .insert({
-            name: formData.name,
-            prefix: formData.prefix,
-            description: formData.description,
-            avg_service_time: formData.avg_service_time,
-            color: formData.color,
-            icon: formData.icon,
-            is_active: formData.is_active,
-            branch_id: formData.branch_id || '00000000-0000-0000-0000-000000000001'
-          });
+          .insert([data]);
 
         if (error) throw error;
         toast.success('Service created successfully');
@@ -140,26 +111,18 @@ export default function ServicesPage() {
 
       setShowDialog(false);
       setEditingService(null);
-      resetForm();
       fetchServices();
     } catch (error) {
       console.error('Error saving service:', error);
       toast.error('Failed to save service');
+      throw error;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEdit = (service: Service) => {
     setEditingService(service);
-    setFormData({
-      name: service.name,
-      prefix: service.prefix,
-      description: service.description || '',
-      avg_service_time: service.avg_service_time,
-      color: service.color,
-      icon: service.icon || '',
-      is_active: service.is_active,
-      branch_id: service.branch_id
-    });
     setShowDialog(true);
   };
 
@@ -199,29 +162,73 @@ export default function ServicesPage() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      prefix: '',
-      description: '',
-      avg_service_time: 300,
-      color: '#3b82f6',
-      icon: '',
-      is_active: true,
-      branch_id: ''
-    });
-  };
-
   const openCreateDialog = () => {
     setEditingService(null);
-    resetForm();
     setShowDialog(true);
   };
 
-  const filteredServices = services.filter(service =>
-    service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    service.description?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredServices = services.filter(service => {
+    const matchesSearch = 
+      service.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      service.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      service.prefix.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || 
+      (statusFilter === 'active' && service.is_active) ||
+      (statusFilter === 'inactive' && !service.is_active);
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  // Sort services
+  const sortedServices = [...filteredServices].sort((a, b) => {
+    let aValue: string | number = '';
+    let bValue: string | number = '';
+
+    switch (sortField) {
+      case 'name':
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+        break;
+      case 'prefix':
+        aValue = a.prefix.toLowerCase();
+        bValue = b.prefix.toLowerCase();
+        break;
+      case 'avg_service_time':
+        aValue = a.avg_service_time;
+        bValue = b.avg_service_time;
+        break;
+      case 'created_at':
+        aValue = new Date(a.created_at).getTime();
+        bValue = new Date(b.created_at).getTime();
+        break;
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(sortedServices.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedServices = sortedServices.slice(startIndex, endIndex);
+
+  const handleSort = (field: 'name' | 'prefix' | 'avg_service_time' | 'created_at') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   const formatDuration = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
@@ -269,243 +276,336 @@ export default function ServicesPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900">Services</h1>
-          <p className="mt-2 text-lg text-gray-600">Manage available services and their configurations</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-2">
+      {/* Clean Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Services Management
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Manage available services and their configurations
+            </p>
+          </div>
+          <Button 
+            onClick={openCreateDialog}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Service
+          </Button>
         </div>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button 
-              className="bg-gradient-to-r from-[#0033A0] to-[#1A237E] hover:from-[#002080] hover:to-[#0d1554]"
-              onClick={openCreateDialog}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Service
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingService ? 'Edit Service' : 'Create New Service'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Service Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter service name"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Enter service description"
-                  rows={3}
-                />
-              </div>
-              <div>
-                <Label htmlFor="prefix">Service Prefix</Label>
-                <Input
-                  id="prefix"
-                  value={formData.prefix}
-                  onChange={(e) => setFormData({ ...formData, prefix: e.target.value })}
-                  placeholder="e.g., BP for Bill Payment"
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-1">Used for ticket numbering (e.g., BP001)</p>
-              </div>
-              <div>
-                <Label htmlFor="duration">Average Service Time (minutes)</Label>
-                <Input
-                  id="duration"
-                  type="number"
-                  value={Math.floor(formData.avg_service_time / 60)}
-                  onChange={(e) => setFormData({ ...formData, avg_service_time: parseInt(e.target.value) * 60 })}
-                  min="1"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="color">Service Color</Label>
-                <Input
-                  id="color"
-                  type="color"
-                  value={formData.color}
-                  onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                  className="h-10 w-full"
-                />
-                <p className="text-sm text-gray-500 mt-1">Color for service identification</p>
-              </div>
-              <div>
-                <Label htmlFor="icon">Icon (optional)</Label>
-                <Input
-                  id="icon"
-                  value={formData.icon}
-                  onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                  placeholder="e.g., credit-card, user, settings"
-                />
-                <p className="text-sm text-gray-500 mt-1">Lucide icon name for display</p>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="rounded"
-                />
-                <Label htmlFor="active">Active</Label>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="bg-gradient-to-r from-[#0033A0] to-[#1A237E]">
-                  {editingService ? 'Update' : 'Create'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card 
+      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {statCards.map((stat, index) => (
+          <Card
             key={stat.title}
-            className="group relative overflow-hidden border-0 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+            className="group relative overflow-hidden border-0 bg-white shadow-md hover:shadow-xl transition-all duration-400 hover:-translate-y-1 rounded-xl animate-fade-in-up"
+            style={{ animationDelay: `${index * 100}ms` }}
           >
-            <div className={`absolute inset-0 opacity-5 ${stat.bgColor}`} />
-            
-            <CardHeader className="relative flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                {stat.title}
-              </CardTitle>
-              <div className={`rounded-xl p-3 ${stat.bgColor} transition-transform duration-300 group-hover:scale-110`}>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.bgColor} ${stat.color.replace('text-', 'from-')} to-transparent`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.bgColor} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
+
+            <CardContent className="relative p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div className={`rounded-xl p-2.5 ${stat.bgColor} transition-all duration-400 group-hover:scale-105 shadow`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+
+                <div className="text-right leading-tight">
+                  <div className="text-3xl font-bold bg-gradient-to-br from-gray-900 to-gray-600 bg-clip-text text-transparent mb-0.5 group-hover:scale-105 transition-transform duration-300">
+                    {stat.value}
+                  </div>
+                </div>
               </div>
-            </CardHeader>
-            
-            <CardContent className="relative">
-              <div className="text-4xl font-bold text-gray-900">{stat.value}</div>
-              <p className="mt-2 text-xs text-gray-500">Total count</p>
+
+              <div>
+                <p className="text-xs font-bold text-gray-800">{stat.title}</p>
+                <p className="text-[10px] text-gray-500">Current status</p>
+              </div>
             </CardContent>
-            
-            <div className={`absolute bottom-0 left-0 h-1 w-full ${stat.bgColor}`} />
           </Card>
         ))}
       </div>
 
-      {/* Search */}
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              placeholder="Search services by name or description..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      {/* Services List with Search and Filters */}
+      <Card className="bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg overflow-hidden">
+        <CardHeader className="border-b border-gray-200 bg-white/50 backdrop-blur-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-bold text-gray-900">Available Services</CardTitle>
+              <p className="text-sm text-gray-600 mt-1">
+                Showing {startIndex + 1}-{Math.min(endIndex, sortedServices.length)} of {sortedServices.length} service{sortedServices.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              setItemsPerPage(Number(value));
+              setCurrentPage(1);
+            }}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 per page</SelectItem>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="20">20 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Services List */}
-      <Card className="border-0 shadow-xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-[#0033A0] to-[#1A237E] text-white">
-          <CardTitle className="text-xl">Available Services ({filteredServices.length})</CardTitle>
+          
+          {/* Search Bar and Status Filter */}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Search services by name, prefix, or description..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
-          {filteredServices.length === 0 ? (
+          {sortedServices.length === 0 ? (
             <div className="p-8 text-center">
               <Briefcase className="mx-auto h-12 w-12 text-gray-400" />
               <p className="mt-2 text-gray-500">
-                {searchTerm ? 'No services found matching your search.' : 'No services available.'}
+                {searchTerm || statusFilter !== 'all' 
+                  ? 'No services found matching your filters.' 
+                  : 'No services available.'}
               </p>
             </div>
           ) : (
-            <div className="divide-y">
-              {filteredServices.map((service) => (
-                <div key={service.id} className="p-6 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#0033A0] to-[#1A237E] text-white">
-                        <Briefcase className="h-6 w-6" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h3 className="text-lg font-semibold text-gray-900">{service.name}</h3>
-                          {service.priority_level > 0 && (
-                            <Badge variant="destructive" className="text-xs">
-                              Priority {service.priority_level}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                          <div className="flex items-center gap-1">
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50 hover:bg-gray-50">
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('name')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Service Name
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('prefix')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Prefix
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('avg_service_time')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Avg Time
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedServices.map((service, index) => (
+                      <TableRow key={service.id} className="hover:bg-blue-50/50">
+                        <TableCell className="font-medium text-gray-500">
+                          {startIndex + index + 1}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-sm">
+                              <Briefcase className="h-5 w-5" />
+                            </div>
+                            <div className="font-semibold text-gray-900">{service.name}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
                             <div 
                               className="w-3 h-3 rounded-full" 
                               style={{ backgroundColor: service.color }}
                             />
-                            <span className="font-medium">{service.prefix}</span>
+                            <span className="font-medium text-gray-700">{service.prefix}</span>
                           </div>
-                          <div className="flex items-center gap-1">
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-gray-600">
+                            {service.description || '-'}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1 text-gray-600">
                             <Clock className="h-4 w-4" />
                             {formatDuration(service.avg_service_time)}
                           </div>
-                          {service.description && (
-                            <span>{service.description}</span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Badge 
-                        className={service.is_active 
-                          ? 'bg-green-100 text-green-700 hover:bg-green-100' 
-                          : 'bg-red-100 text-red-700 hover:bg-red-100'
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            className={service.is_active 
+                              ? 'bg-green-100 text-green-700 hover:bg-green-100' 
+                              : 'bg-red-100 text-red-700 hover:bg-red-100'
+                            }
+                          >
+                            {service.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => toggleServiceStatus(service.id, service.is_active)}
+                              className="h-8"
+                            >
+                              {service.is_active ? 'Deactivate' : 'Activate'}
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              onClick={() => handleEdit(service)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                              onClick={() => handleDelete(service.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-4">
+                  <div className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
                         }
-                      >
-                        {service.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => toggleServiceStatus(service.id, service.is_active)}
-                      >
-                        {service.is_active ? 'Deactivate' : 'Activate'}
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleEdit(service)}>
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="text-red-600 hover:text-red-700"
-                        onClick={() => handleDelete(service.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                        
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
                     </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
                   </div>
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog with Modern Form */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">
+              {editingService ? 'Edit Service' : 'Create New Service'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[calc(90vh-120px)] px-1">
+            <ServiceForm
+              defaultValues={editingService ? {
+                name: editingService.name,
+                prefix: editingService.prefix,
+                description: editingService.description || '',
+                avg_service_time: editingService.avg_service_time,
+                color: editingService.color,
+                icon: editingService.icon || '',
+                is_active: editingService.is_active,
+                branch_id: editingService.branch_id,
+              } : undefined}
+              onSubmit={handleSubmit}
+              onCancel={() => setShowDialog(false)}
+              isSubmitting={isSubmitting}
+              existingServices={services.map(s => ({ 
+                id: s.id, 
+                name: s.name, 
+                prefix: s.prefix 
+              }))}
+              editingServiceId={editingService?.id}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

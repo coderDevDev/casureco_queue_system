@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useBranding } from '@/lib/hooks/use-branding';
 import {
   LayoutDashboard,
   Building2,
@@ -16,6 +17,7 @@ import {
   Ticket,
   Clock,
   BarChart3,
+  Palette,
 } from 'lucide-react';
 
 interface NavigationItem {
@@ -33,6 +35,7 @@ const adminNavigation: NavigationItem[] = [
   { name: 'Users', href: '/admin/users', icon: Users },
   { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
   { name: 'Announcements', href: '/admin/announcements', icon: Megaphone },
+  { name: 'Branding', href: '/admin/branding', icon: Palette },
   { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 
@@ -49,20 +52,34 @@ interface AdminSidebarProps {
 
 export function AdminSidebar({ role = 'admin' }: AdminSidebarProps) {
   const pathname = usePathname();
+  const { branding } = useBranding();
   
   // Determine navigation based on role
   const navigation = role === 'admin' || role === 'supervisor' ? adminNavigation : staffNavigation;
   const roleLabel = role === 'admin' ? 'Admin Panel' : role === 'supervisor' ? 'Supervisor Panel' : 'Staff Panel';
 
+
+  console.log({branding})
   return (
     <div className="flex h-screen w-72 flex-col bg-gradient-to-b from-[#0033A0] to-[#1A237E] shadow-2xl">
       {/* Logo & Brand */}
       <div className="flex h-20 items-center gap-3 border-b border-white/10 px-6">
-        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
-          <Zap className="h-7 w-7 text-yellow-400" />
-        </div>
+        {branding.logo_url ? (
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl backdrop-blur-sm p-1.5">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={branding.logo_url}
+              alt={branding.company_name}
+              className="h-full w-full object-contain"
+            />
+          </div>
+        ) : (
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm">
+            <Zap className="h-7 w-7 text-yellow-400" />
+          </div>
+        )}
         <div>
-          <h1 className="text-xl font-bold text-white">CASURECO II</h1>
+          <h1 className="text-xl font-bold text-white">{branding.company_name}</h1>
           <p className="text-xs text-white/60">Queue Management System</p>
         </div>
       </div>

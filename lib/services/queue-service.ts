@@ -243,8 +243,14 @@ export async function updateTicketStatus(
 
   if (status === 'serving') {
     updateData.started_at = new Date().toISOString();
-  } else if (status === 'done') {
+  } else if (status === 'done' || status === 'cancelled' || status === 'skipped') {
     updateData.ended_at = new Date().toISOString();
+    
+    // Set served_by to current user when completing/cancelling/skipping ticket
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user?.id) {
+      updateData.served_by = user.id;
+    }
   }
 
   if (updates?.counter_id) {

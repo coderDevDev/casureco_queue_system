@@ -3,8 +3,10 @@
 import { Clock, Zap } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { formatDate } from '@/lib/utils';
+import { useBranding } from '@/lib/hooks/use-branding';
 
 export function DisplayHeader() {
+  const { branding } = useBranding();
   const [currentTime, setCurrentTime] = useState(new Date());
 
   useEffect(() => {
@@ -26,12 +28,23 @@ export function DisplayHeader() {
       
       <div className=" relative  flex h-24 items-center justify-between px-6">
         <div className="flex items-center gap-4">
-          <div className="rounded-xl bg-white/10 p-2.5 backdrop-blur-sm">
-            <Zap className="h-8 w-8 text-yellow-400" />
-          </div>
+          {branding.logo_url ? (
+            <div className="rounded-xl p-2 backdrop-blur-sm">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={branding.logo_url}
+                alt={branding.company_name}
+                className="h-14 w-14 object-contain"
+              />
+            </div>
+          ) : (
+            <div className="rounded-xl p-2.5 backdrop-blur-sm">
+              <Zap className="h-8 w-8 text-yellow-400" />
+            </div>
+          )}
           <div>
             <h1 className="text-3xl font-bold text-white">
-              CASURECO II
+              {branding.company_name}
             </h1>
             <p className="text-sm font-medium text-white/70">Queue Management System</p>
           </div>

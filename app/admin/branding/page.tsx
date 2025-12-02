@@ -430,7 +430,7 @@ export default function BrandingPage() {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              {/* <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
                   <Label htmlFor="show_qr_code" className="cursor-pointer">
                     Show QR Code
@@ -442,7 +442,7 @@ export default function BrandingPage() {
                   checked={settings.show_qr_code}
                   onCheckedChange={(checked) => setSettings({ ...settings, show_qr_code: checked })}
                 />
-              </div>
+              </div> */}
             </CardContent>
           </Card>
         </div>

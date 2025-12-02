@@ -1,9 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { BarChart3, TrendingUp, Clock, Users, CheckCircle, Target, Calendar, Award } from 'lucide-react';
+import { BarChart3, TrendingUp, Clock, CheckCircle, Target, Award } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/lib/hooks/use-auth';
 import { formatDuration } from '@/lib/utils';
@@ -98,8 +97,6 @@ export default function StaffStatsPage() {
 
       const allTickets = tickets || [];
       const completedTickets = allTickets.filter(t => t.status === 'done');
-      const cancelledTickets = allTickets.filter(t => t.status === 'cancelled');
-      const skippedTickets = allTickets.filter(t => t.status === 'skipped');
 
       // Calculate performance stats
       const totalServed = completedTickets.length;
@@ -250,16 +247,20 @@ export default function StaffStatsPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900">Statistics</h1>
-          <p className="mt-2 text-lg text-gray-600">Track your performance and productivity</p>
-        </div>
-        <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-2">
+      {/* Clean Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Performance Statistics
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Track your performance and productivity
+            </p>
+          </div>
           <Select value={period} onValueChange={setPeriod}>
-            <SelectTrigger className="w-32">
+            <SelectTrigger className="w-40 bg-white shadow-md">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -271,38 +272,43 @@ export default function StaffStatsPage() {
         </div>
       </div>
 
-      {/* Performance Cards */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card 
+      {/* Enhanced Performance Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {statCards.map((stat, index) => (
+          <Card
             key={stat.title}
-            className="group relative overflow-hidden border-0 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+            className="group relative overflow-hidden border-0 bg-white shadow-md hover:shadow-xl transition-all duration-400 hover:-translate-y-1 rounded-xl animate-fade-in-up"
+            style={{ animationDelay: `${index * 100}ms` }}
           >
-            <div className={`absolute inset-0 opacity-5 ${stat.bgColor}`} />
-            
-            <CardHeader className="relative flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                {stat.title}
-              </CardTitle>
-              <div className={`rounded-xl p-3 ${stat.bgColor} transition-transform duration-300 group-hover:scale-110`}>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.bgColor} ${stat.color.replace('text-', 'from-')} to-transparent`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.bgColor} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
+
+            <CardContent className="relative p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div className={`rounded-xl p-2.5 ${stat.bgColor} transition-all duration-400 group-hover:scale-105 shadow`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+
+                <div className="text-right leading-tight">
+                  <div className="text-3xl font-bold bg-gradient-to-br from-gray-900 to-gray-600 bg-clip-text text-transparent mb-0.5 group-hover:scale-105 transition-transform duration-300">
+                    {stat.value}
+                  </div>
+                </div>
               </div>
-            </CardHeader>
-            
-            <CardContent className="relative">
-              <div className="text-4xl font-bold text-gray-900">{stat.value}</div>
-              <p className="mt-2 text-xs text-gray-500">{stat.subtitle}</p>
+
+              <div>
+                <p className="text-xs font-bold text-gray-800">{stat.title}</p>
+                <p className="text-[10px] text-gray-500">{stat.subtitle}</p>
+              </div>
             </CardContent>
-            
-            <div className={`absolute bottom-0 left-0 h-1 w-full ${stat.bgColor}`} />
           </Card>
         ))}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Daily Performance Chart */}
-        <Card className="border-0 shadow-xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-[#0033A0] to-[#1A237E] text-white">
+        <Card className="bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg overflow-hidden">
+          <CardHeader className="border-b border-gray-200">
             <CardTitle className="text-xl flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
               Daily Performance
@@ -310,7 +316,7 @@ export default function StaffStatsPage() {
           </CardHeader>
           <CardContent className="p-6">
             <div className="space-y-4">
-              {dailyStats.slice(-7).map((day, index) => {
+              {dailyStats.slice(-7).map((day) => {
                 const maxTickets = Math.max(...dailyStats.map(d => d.tickets_served), 1);
                 const percentage = (day.tickets_served / maxTickets) * 100;
                 
@@ -344,8 +350,8 @@ export default function StaffStatsPage() {
         </Card>
 
         {/* Performance Insights */}
-        <Card className="border-0 shadow-xl overflow-hidden">
-          <CardHeader className="bg-gradient-to-r from-[#0033A0] to-[#1A237E] text-white">
+        <Card className="bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg overflow-hidden">
+          <CardHeader className="border-b border-gray-200">
             <CardTitle className="text-xl flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
               Performance Insights
@@ -354,7 +360,7 @@ export default function StaffStatsPage() {
           <CardContent className="p-6">
             <div className="space-y-6">
               {/* Best Day */}
-              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-100">
                 <div>
                   <p className="text-sm text-green-600 font-medium">Best Day</p>
                   <p className="text-lg font-bold text-green-900">
@@ -368,7 +374,7 @@ export default function StaffStatsPage() {
               </div>
 
               {/* Average Wait Time */}
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
+              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-100">
                 <div>
                   <p className="text-sm text-blue-600 font-medium">Avg Wait Time</p>
                   <p className="text-lg font-bold text-blue-900">
@@ -381,7 +387,7 @@ export default function StaffStatsPage() {
               </div>
 
               {/* Efficiency Rating */}
-              <div className={`flex items-center justify-between p-4 rounded-lg ${getEfficiencyBgColor(stats.efficiency_score)}`}>
+              <div className={`flex items-center justify-between p-4 rounded-lg border ${getEfficiencyBgColor(stats.efficiency_score)} ${getEfficiencyBgColor(stats.efficiency_score).replace('bg-', 'border-')}`}>
                 <div>
                   <p className={`text-sm font-medium ${getEfficiencyColor(stats.efficiency_score)}`}>Efficiency Rating</p>
                   <p className={`text-lg font-bold ${getEfficiencyColor(stats.efficiency_score).replace('text-', 'text-').replace('-600', '-900')}`}>
@@ -397,7 +403,7 @@ export default function StaffStatsPage() {
               </div>
 
               {/* Performance Tips */}
-              <div className="p-4 bg-yellow-50 rounded-lg">
+              <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-100">
                 <p className="text-sm text-yellow-600 font-medium mb-2">💡 Performance Tip</p>
                 <p className="text-sm text-yellow-800">
                   {stats.avg_service_time > 300 

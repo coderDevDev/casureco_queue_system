@@ -1,16 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Monitor, Edit, Trash2, Search, User, Building2, Activity } from 'lucide-react';
+import { Plus, Monitor, Edit, Trash2, Search, User, Building2, Activity, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { createClient } from '@/lib/supabase/client';
 import { toast } from 'sonner';
+import { CounterForm } from '@/components/admin/counter-form';
+import type { CounterFormData } from '@/lib/validations/counter';
 
 interface Counter {
   id: string;
@@ -20,7 +22,7 @@ interface Counter {
   is_active: boolean;
   is_paused: boolean;
   last_ping?: string;
-  settings: Record<string, any>;
+  settings: Record<string, unknown>;
   created_at: string;
   updated_at: string;
   staff?: {
@@ -37,26 +39,19 @@ interface Branch {
   name: string;
 }
 
-interface CounterFormData {
-  name: string;
-  branch_id: string;
-  is_active: boolean;
-  is_paused: boolean;
-}
-
 export default function CountersPage() {
   const [counters, setCounters] = useState<Counter[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
   const [showDialog, setShowDialog] = useState(false);
   const [editingCounter, setEditingCounter] = useState<Counter | null>(null);
-  const [formData, setFormData] = useState<CounterFormData>({
-    name: '',
-    branch_id: '',
-    is_active: true,
-    is_paused: false
-  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [sortField, setSortField] = useState<'name' | 'branch' | 'status' | 'created_at'>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -112,9 +107,9 @@ export default function CountersPage() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (data: CounterFormData) => {
     const supabase = createClient();
+    setIsSubmitting(true);
 
     try {
       if (editingCounter) {
@@ -122,10 +117,7 @@ export default function CountersPage() {
         const { error } = await supabase
           .from('counters')
           .update({
-            name: formData.name,
-            branch_id: formData.branch_id,
-            is_active: formData.is_active,
-            is_paused: formData.is_paused,
+            ...data,
             updated_at: new Date().toISOString()
           })
           .eq('id', editingCounter.id);
@@ -136,13 +128,10 @@ export default function CountersPage() {
         // Create new counter
         const { error } = await supabase
           .from('counters')
-          .insert({
-            name: formData.name,
-            branch_id: formData.branch_id,
-            is_active: formData.is_active,
-            is_paused: formData.is_paused,
+          .insert([{
+            ...data,
             settings: {}
-          });
+          }]);
 
         if (error) throw error;
         toast.success('Counter created successfully');
@@ -150,22 +139,18 @@ export default function CountersPage() {
 
       setShowDialog(false);
       setEditingCounter(null);
-      resetForm();
       fetchData();
     } catch (error) {
       console.error('Error saving counter:', error);
       toast.error('Failed to save counter');
+      throw error;
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleEdit = (counter: Counter) => {
     setEditingCounter(counter);
-    setFormData({
-      name: counter.name,
-      branch_id: counter.branch_id,
-      is_active: counter.is_active,
-      is_paused: counter.is_paused
-    });
     setShowDialog(true);
   };
 
@@ -191,7 +176,7 @@ export default function CountersPage() {
   const toggleCounterStatus = async (counterId: string, currentStatus: boolean) => {
     const supabase = createClient();
     try {
-      const { error } = await supabase
+      const { error} = await supabase
         .from('counters')
         .update({ is_active: !currentStatus })
         .eq('id', counterId);
@@ -227,26 +212,74 @@ export default function CountersPage() {
     }
   };
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      branch_id: '',
-      is_active: true,
-      is_paused: false
-    });
-  };
-
   const openCreateDialog = () => {
     setEditingCounter(null);
-    resetForm();
     setShowDialog(true);
   };
 
-  const filteredCounters = counters.filter(counter =>
-    counter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    counter.branch?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    counter.staff?.full_name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredCounters = counters.filter(counter => {
+    const matchesSearch = 
+      counter.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      counter.branch?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      counter.staff?.name.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    let matchesStatus = true;
+    if (statusFilter === 'active') matchesStatus = counter.is_active && !counter.staff_id;
+    if (statusFilter === 'occupied') matchesStatus = counter.staff_id !== undefined && counter.staff_id !== null;
+    if (statusFilter === 'inactive') matchesStatus = !counter.is_active;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  // Sort counters
+  const sortedCounters = [...filteredCounters].sort((a, b) => {
+    let aValue: string | number = '';
+    let bValue: string | number = '';
+
+    switch (sortField) {
+      case 'name':
+        aValue = a.name.toLowerCase();
+        bValue = b.name.toLowerCase();
+        break;
+      case 'branch':
+        aValue = a.branch?.name.toLowerCase() || '';
+        bValue = b.branch?.name.toLowerCase() || '';
+        break;
+      case 'status':
+        aValue = a.is_active ? (a.staff_id ? 2 : 1) : 0; // inactive=0, active=1, occupied=2
+        bValue = b.is_active ? (b.staff_id ? 2 : 1) : 0;
+        break;
+      case 'created_at':
+        aValue = new Date(a.created_at).getTime();
+        bValue = new Date(b.created_at).getTime();
+        break;
+    }
+
+    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  // Pagination
+  const totalPages = Math.ceil(sortedCounters.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedCounters = sortedCounters.slice(startIndex, endIndex);
+
+  const handleSort = (field: 'name' | 'branch' | 'status' | 'created_at') => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('asc');
+    }
+    setCurrentPage(1);
+  };
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter]);
 
   const getCounterStatus = (counter: Counter) => {
     if (!counter.is_active) return { label: 'Inactive', color: 'bg-gray-100 text-gray-700' };
@@ -294,207 +327,349 @@ export default function CountersPage() {
   }
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold text-gray-900">Counters</h1>
-          <p className="mt-2 text-lg text-gray-600">Manage service counters and staff assignments</p>
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 p-2">
+      {/* Clean Header Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+              Counters Management
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Manage service counters and staff assignments
+            </p>
+          </div>
+          <Button 
+            onClick={openCreateDialog}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 shadow-lg hover:shadow-xl transition-all duration-300"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Add Counter
+          </Button>
         </div>
-        <Dialog open={showDialog} onOpenChange={setShowDialog}>
-          <DialogTrigger asChild>
-            <Button 
-              className="bg-gradient-to-r from-[#0033A0] to-[#1A237E] hover:from-[#002080] hover:to-[#0d1554]"
-              onClick={openCreateDialog}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add Counter
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>
-                {editingCounter ? 'Edit Counter' : 'Create New Counter'}
-              </DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="name">Counter Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter counter name (e.g., Counter 1)"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="branch">Branch</Label>
-                <Select value={formData.branch_id} onValueChange={(value) => setFormData({ ...formData, branch_id: value })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a branch" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {branches.map((branch) => (
-                      <SelectItem key={branch.id} value={branch.id}>
-                        {branch.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  id="active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="rounded"
-                />
-                <Label htmlFor="active">Active</Label>
-              </div>
-              <div className="flex justify-end space-x-2">
-                <Button type="button" variant="outline" onClick={() => setShowDialog(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" className="bg-gradient-to-r from-[#0033A0] to-[#1A237E]">
-                  {editingCounter ? 'Update' : 'Create'}
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-6 md:grid-cols-4">
-        {statCards.map((stat) => (
-          <Card 
+      {/* Enhanced Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        {statCards.map((stat, index) => (
+          <Card
             key={stat.title}
-            className="group relative overflow-hidden border-0 bg-white shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+            className="group relative overflow-hidden border-0 bg-white shadow-md hover:shadow-xl transition-all duration-400 hover:-translate-y-1 rounded-xl animate-fade-in-up"
+            style={{ animationDelay: `${index * 100}ms` }}
           >
-            <div className={`absolute inset-0 opacity-5 ${stat.bgColor}`} />
-            
-            <CardHeader className="relative flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-semibold uppercase tracking-wide text-gray-500">
-                {stat.title}
-              </CardTitle>
-              <div className={`rounded-xl p-3 ${stat.bgColor} transition-transform duration-300 group-hover:scale-110`}>
-                <stat.icon className={`h-6 w-6 ${stat.color}`} />
+            <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${stat.bgColor} ${stat.color.replace('text-', 'from-')} to-transparent`} />
+            <div className={`absolute inset-0 bg-gradient-to-br ${stat.bgColor} opacity-0 group-hover:opacity-10 transition-opacity duration-500`} />
+
+            <CardContent className="relative p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div className={`rounded-xl p-2.5 ${stat.bgColor} transition-all duration-400 group-hover:scale-105 shadow`}>
+                  <stat.icon className={`h-5 w-5 ${stat.color}`} />
+                </div>
+
+                <div className="text-right leading-tight">
+                  <div className="text-3xl font-bold bg-gradient-to-br from-gray-900 to-gray-600 bg-clip-text text-transparent mb-0.5 group-hover:scale-105 transition-transform duration-300">
+                    {stat.value}
+                  </div>
+                </div>
               </div>
-            </CardHeader>
-            
-            <CardContent className="relative">
-              <div className="text-4xl font-bold text-gray-900">{stat.value}</div>
-              <p className="mt-2 text-xs text-gray-500">Total count</p>
+
+              <div>
+                <p className="text-xs font-bold text-gray-800">{stat.title}</p>
+                <p className="text-[10px] text-gray-500">Current status</p>
+              </div>
             </CardContent>
-            
-            <div className={`absolute bottom-0 left-0 h-1 w-full ${stat.bgColor}`} />
           </Card>
         ))}
       </div>
 
-      {/* Search */}
-      <Card className="border-0 shadow-lg">
-        <CardContent className="p-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-            <Input
-              placeholder="Search counters by name, branch, or assigned staff..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
+      {/* Counters List with Search and Filters */}
+      <Card className="bg-white/80 backdrop-blur-xl border border-white/50 shadow-lg overflow-hidden">
+        <CardHeader className="border-b border-gray-200 bg-white/50 backdrop-blur-sm space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-xl font-bold text-gray-900">Service Counters</CardTitle>
+              <p className="text-sm text-gray-600 mt-1">
+                Showing {startIndex + 1}-{Math.min(endIndex, sortedCounters.length)} of {sortedCounters.length} counter{sortedCounters.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <Select value={itemsPerPage.toString()} onValueChange={(value) => {
+              setItemsPerPage(Number(value));
+              setCurrentPage(1);
+            }}>
+              <SelectTrigger className="w-32">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5 per page</SelectItem>
+                <SelectItem value="10">10 per page</SelectItem>
+                <SelectItem value="20">20 per page</SelectItem>
+                <SelectItem value="50">50 per page</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Counters List */}
-      <Card className="border-0 shadow-xl overflow-hidden">
-        <CardHeader className="bg-gradient-to-r from-[#0033A0] to-[#1A237E] text-white">
-          <CardTitle className="text-xl">Service Counters ({filteredCounters.length})</CardTitle>
+          
+          {/* Search Bar and Status Filter */}
+          <div className="flex items-center gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Input
+                placeholder="Search counters by name, branch, or assigned staff..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 border-gray-200 focus:border-blue-500 focus:ring-blue-500/20"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="active">Available</SelectItem>
+                <SelectItem value="occupied">Occupied</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardHeader>
         <CardContent className="p-0">
-          {filteredCounters.length === 0 ? (
+          {sortedCounters.length === 0 ? (
             <div className="p-8 text-center">
               <Monitor className="mx-auto h-12 w-12 text-gray-400" />
               <p className="mt-2 text-gray-500">
-                {searchTerm ? 'No counters found matching your search.' : 'No counters available.'}
+                {searchTerm || statusFilter !== 'all' 
+                  ? 'No counters found matching your filters.' 
+                  : 'No counters available.'}
               </p>
             </div>
           ) : (
-            <div className="divide-y">
-              {filteredCounters.map((counter) => {
-                const status = getCounterStatus(counter);
-                return (
-                  <div key={counter.id} className="p-6 hover:bg-gray-50 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#0033A0] to-[#1A237E] text-white">
-                          <Monitor className="h-6 w-6" />
-                        </div>
-                        <div>
-                          <h3 className="text-lg font-semibold text-gray-900">{counter.name}</h3>
-                          <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
-                            <div className="flex items-center gap-1">
+            <>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50 hover:bg-gray-50">
+                      <TableHead className="w-12">#</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('name')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Counter Name
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('branch')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Branch
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>Assigned Staff</TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('status')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Status
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead>
+                        <Button
+                          variant="ghost"
+                          onClick={() => handleSort('created_at')}
+                          className="flex items-center gap-1 hover:bg-transparent p-0 h-auto font-semibold"
+                        >
+                          Created
+                          <ArrowUpDown className="h-4 w-4" />
+                        </Button>
+                      </TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {paginatedCounters.map((counter, index) => {
+                      const status = getCounterStatus(counter);
+                      return (
+                        <TableRow key={counter.id} className="hover:bg-blue-50/50">
+                          <TableCell className="font-medium text-gray-500">
+                            {startIndex + index + 1}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-blue-700 text-white shadow-sm">
+                                <Monitor className="h-5 w-5" />
+                              </div>
+                              <div className="font-semibold text-gray-900">{counter.name}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 text-gray-600">
                               <Building2 className="h-4 w-4" />
                               {counter.branch?.name || 'Unknown Branch'}
                             </div>
-                            {counter.staff && (
-                              <div className="flex items-center gap-1">
+                          </TableCell>
+                          <TableCell>
+                            {counter.staff ? (
+                              <div className="flex items-center gap-1 text-gray-600">
                                 <User className="h-4 w-4" />
-                                {counter.staff.full_name}
+                                {counter.staff.name}
                               </div>
+                            ) : (
+                              <span className="text-gray-400 text-sm">No staff</span>
                             )}
-                            {counter.last_ping && (
-                              <div className="text-xs">
-                                Last ping: {new Date(counter.last_ping).toLocaleString()}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge className={`hover:${status.color} ${status.color}`}>
-                          {status.label}
-                        </Badge>
-                        {counter.staff_id && (
-                          <Button 
-                            variant="outline" 
-                            size="sm"
-                            onClick={() => releaseStaff(counter.id)}
-                            className="text-orange-600 hover:text-orange-700"
-                          >
-                            Release Staff
-                          </Button>
-                        )}
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={() => toggleCounterStatus(counter.id, counter.is_active)}
-                        >
-                          {counter.is_active ? 'Deactivate' : 'Activate'}
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={() => handleEdit(counter)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-red-600 hover:text-red-700"
-                          onClick={() => handleDelete(counter.id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={status.color}>
+                              {status.label}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-gray-600">
+                            {new Date(counter.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {counter.staff_id && (
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => releaseStaff(counter.id)}
+                                  className="text-orange-600 hover:text-orange-700 h-8"
+                                >
+                                  Release
+                                </Button>
+                              )}
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => toggleCounterStatus(counter.id, counter.is_active)}
+                                className="h-8"
+                              >
+                                {counter.is_active ? 'Deactivate' : 'Activate'}
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={() => handleEdit(counter)}
+                                className="h-8 w-8 p-0"
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button 
+                                variant="outline" 
+                                size="sm" 
+                                className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                                onClick={() => handleDelete(counter.id)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-gray-200 bg-white px-6 py-4">
+                  <div className="text-sm text-gray-600">
+                    Page {currentPage} of {totalPages}
                   </div>
-                );
-              })}
-            </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      className="h-8"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Previous
+                    </Button>
+                    
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        let pageNum;
+                        if (totalPages <= 5) {
+                          pageNum = i + 1;
+                        } else if (currentPage <= 3) {
+                          pageNum = i + 1;
+                        } else if (currentPage >= totalPages - 2) {
+                          pageNum = totalPages - 4 + i;
+                        } else {
+                          pageNum = currentPage - 2 + i;
+                        }
+                        
+                        return (
+                          <Button
+                            key={pageNum}
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className="h-8 w-8 p-0"
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      className="h-8"
+                    >
+                      Next
+                      <ChevronRight className="h-4 w-4 ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>
+
+      {/* Dialog with Modern Form */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-hidden">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold">
+              {editingCounter ? 'Edit Counter' : 'Create New Counter'}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="overflow-y-auto max-h-[calc(90vh-120px)] px-1">
+            <CounterForm
+              defaultValues={editingCounter ? {
+                name: editingCounter.name,
+                branch_id: editingCounter.branch_id,
+                is_active: editingCounter.is_active,
+                is_paused: editingCounter.is_paused,
+              } : undefined}
+              branches={branches}
+              onSubmit={handleSubmit}
+              onCancel={() => setShowDialog(false)}
+              isSubmitting={isSubmitting}
+              existingCounters={counters.map(c => ({ 
+                id: c.id, 
+                name: c.name 
+              }))}
+              editingCounterId={editingCounter?.id}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
