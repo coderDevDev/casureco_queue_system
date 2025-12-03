@@ -1,0 +1,88 @@
+========================================
+QUICK START: AUTOMATIC PRINTING KIOSK
+========================================
+
+SETUP (One-time only):
+======================
+
+1. Set Gprinter GP-1424D as DEFAULT printer
+   - Windows Settings → Printers → Gprinter GP-1424D
+   - Click "Manage" → "Set as default"
+
+2. Make sure dev server is running
+   - Open terminal in project folder
+   - Run: npm run dev
+   - Wait for "Ready on http://localhost:3000"
+
+
+LAUNCH KIOSK MODE:
+==================
+
+Double-click: launch-kiosk.bat
+
+This will:
+✅ Close all Chrome windows
+✅ Launch in full-screen kiosk mode
+✅ Enable AUTOMATIC printing (no dialog!)
+✅ Print directly to Gprinter GP-1424D
+
+
+HOW IT WORKS:
+=============
+
+1. User selects service
+2. User selects priority
+3. Ticket appears on screen
+4. After 0.8 seconds → AUTOMATICALLY PRINTS!
+5. Beautiful design with logo, colors, borders
+6. No print dialog - goes straight to printer!
+7. Page resets after 15 seconds
+
+
+BENEFITS OF KIOSK MODE:
+=======================
+
+✅ Full-screen (no browser UI)
+✅ Automatic printing (no user action needed)
+✅ Beautiful ticket design preserved
+✅ Logo, colors, borders all print correctly
+✅ Professional kiosk experience
+
+
+TO EXIT KIOSK MODE:
+===================
+
+Press: Alt + F4
+Or: Ctrl + W
+
+
+TROUBLESHOOTING:
+================
+
+Problem: Print dialog still appears
+Solution: Make sure you launched via launch-kiosk.bat
+         (Not just opening Chrome normally)
+
+Problem: Printer not found
+Solution: Verify Gprinter GP-1424D is set as DEFAULT
+
+Problem: Blank page
+Solution: Make sure npm run dev is running first
+
+
+NORMAL MODE vs KIOSK MODE:
+===========================
+
+NORMAL MODE (npm run dev + open browser):
+- Shows print dialog
+- User clicks Print button
+- Good for testing
+
+KIOSK MODE (launch-kiosk.bat):
+- NO print dialog
+- Automatic printing
+- Full-screen
+- Production-ready
+
+
+For production deployment, always use KIOSK MODE!

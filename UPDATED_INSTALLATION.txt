@@ -1,0 +1,87 @@
+========================================
+UPDATED: THERMAL PRINTER SETUP (NO EXTRA PACKAGES NEEDED!)
+========================================
+
+GOOD NEWS: I've updated the code to use Windows built-in printing!
+No need to install @thiagoelg/node-printer anymore.
+
+STEP 1: Remove the problematic package (if you installed it)
+-------------------------------------------------------------
+npm uninstall @thiagoelg/node-printer
+
+
+STEP 2: Set Gprinter as Default Printer
+----------------------------------------
+1. Press Windows Key
+2. Type "Printers & scanners" and open it
+3. Find "Gprinter GP-1424D"
+4. Click on it → Click "Manage"
+5. Click "Set as default"
+
+
+STEP 3: Restart Your Server
+----------------------------
+npm run dev
+
+
+STEP 4: Test It!
+----------------
+1. Go to: http://localhost:3000/kiosk
+2. Select a service
+3. Select priority level
+4. Ticket will print automatically to Gprinter GP-1424D!
+
+
+HOW IT WORKS NOW:
+=================
+
+✅ Uses Windows PowerShell commands (built-in, no packages needed!)
+✅ Creates temporary text file with ticket data
+✅ Sends to printer using Windows Out-Printer command
+✅ Auto-deletes temp file after printing
+✅ Works with any Windows printer, including thermal printers
+
+
+WHAT CHANGED:
+=============
+
+- Removed dependency on @thiagoelg/node-printer
+- Now uses native Windows printing via PowerShell
+- More reliable and compatible with Next.js
+- No native modules or compilation issues
+
+
+FILES UPDATED:
+==============
+
+1. app/api/print-ticket/route.ts - Now uses PowerShell printing
+2. app/api/printer-status/route.ts - Checks printer via PowerShell
+
+
+TROUBLESHOOTING:
+================
+
+If printing doesn't work:
+
+1. Make sure Gprinter GP-1424D is set as DEFAULT printer
+2. Check printer is ON and connected
+3. Test printer with Notepad first (File → Print)
+4. Check terminal for error messages
+5. Visit http://localhost:3000/api/printer-status
+
+
+PRINTER NAME:
+=============
+
+The code looks for printers named:
+- "Gprinter GP-1424D"
+- Or any printer with "Gprinter" in the name
+
+If your printer has a different name:
+1. Open Control Panel → Devices and Printers
+2. Note the EXACT printer name
+3. Update line 157 in app/api/print-ticket/route.ts:
+   const printerName = 'YOUR_EXACT_PRINTER_NAME';
+
+
+That's it! No packages to install, just use Windows built-in printing!

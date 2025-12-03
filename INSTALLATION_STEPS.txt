@@ -1,0 +1,89 @@
+========================================
+THERMAL PRINTER DIRECT PRINTING SETUP
+========================================
+
+STEP 1: Install Required Package
+---------------------------------
+Open terminal in your project folder and run:
+
+npm install @thiagoelg/node-printer
+
+This installs the library that communicates with your Gprinter GP-1424D.
+
+
+STEP 2: Set Default Printer
+----------------------------
+1. Press Windows Key
+2. Type "Printers & scanners" and open it
+3. Find "Gprinter GP-1424D"
+4. Click on it → Click "Manage"
+5. Click "Set as default"
+
+
+STEP 3: Start Your Server
+--------------------------
+npm run dev
+
+
+STEP 4: Test It!
+----------------
+1. Go to: http://localhost:3000/kiosk
+2. Select a service
+3. Select priority level
+4. Watch the ticket print automatically to your thermal printer!
+
+
+WHAT WAS IMPLEMENTED:
+=====================
+
+✅ Direct printing API (/api/print-ticket)
+✅ ESC/POS commands for thermal printer formatting
+✅ Auto-print after ticket creation (no dialog!)
+✅ Printer status check API (/api/printer-status)
+✅ Fallback "Print Ticket" button if auto-print fails
+✅ Professional ticket formatting
+✅ Toast notifications for print status
+
+
+HOW IT WORKS:
+=============
+
+1. User creates ticket
+2. Frontend calls /api/print-ticket with ticket data
+3. Backend generates ESC/POS commands
+4. Commands sent directly to Gprinter GP-1424D via USB
+5. Ticket prints automatically - NO BROWSER DIALOG!
+
+
+FILES CREATED:
+==============
+
+1. lib/services/printer-service.ts - Print API client
+2. app/api/print-ticket/route.ts - Print API endpoint
+3. app/api/printer-status/route.ts - Printer status check
+4. components/kiosk/ticket-print.tsx - Updated with direct printing
+5. PRINTER_SETUP.md - Detailed setup guide
+
+
+TROUBLESHOOTING:
+================
+
+If printing doesn't work:
+
+1. Check printer is ON and connected
+2. Verify it's set as default printer
+3. Check terminal for error messages
+4. Visit http://localhost:3000/api/printer-status to check connection
+5. Make sure you installed: npm install @thiagoelg/node-printer
+
+
+NEXT STEPS:
+===========
+
+1. Run: npm install @thiagoelg/node-printer
+2. Set Gprinter as default printer
+3. Restart your dev server
+4. Test by creating a ticket!
+
+
+Need help? Check PRINTER_SETUP.md for detailed documentation.

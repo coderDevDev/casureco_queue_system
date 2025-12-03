@@ -1,0 +1,151 @@
+========================================
+KIOSK MODE AUTO-PRINT SETUP GUIDE
+========================================
+
+PREREQUISITES:
+==============
+
+1. Chrome Version 18.0.1 or higher
+   - Open Chrome
+   - Type: chrome://version
+   - Check version number
+
+2. Gprinter GP-1424D set as DEFAULT printer
+   - Windows Settings → Printers
+   - Set Gprinter as default
+
+3. Dev server running
+   - npm run dev
+
+
+IMPORTANT: VERIFY CHROME FLAGS
+===============================
+
+Before using kiosk mode, check Chrome flags:
+
+1. Open Chrome
+2. Type in address bar: chrome://flags
+3. Search for: "Print Preview"
+4. Make sure "Disable Print Preview" is NOT enabled
+5. Print preview MUST be enabled for auto-print to work!
+
+
+HOW KIOSK PRINTING WORKS:
+==========================
+
+When you use --kiosk-printing flag:
+✅ Print preview appears briefly
+✅ Then INSTANTLY auto-prints to default printer
+✅ No user action needed!
+
+The preview flash is normal - it auto-prints immediately.
+
+
+SETUP METHOD 1: Use Batch File (Easiest)
+=========================================
+
+1. Make sure dev server is running (npm run dev)
+2. Double-click: launch-kiosk.bat
+3. Chrome will open in full-screen kiosk mode
+4. Create a ticket - it will auto-print!
+
+
+SETUP METHOD 2: Chrome Shortcut (Permanent)
+============================================
+
+For permanent kiosk setup:
+
+1. Find Chrome shortcut on desktop
+2. Right-click → Properties
+3. In "Target" field, add to the END:
+   --kiosk --kiosk-printing
+
+   Example:
+   "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --kiosk-printing
+
+4. Add the URL after the flags:
+   "C:\Program Files\Google\Chrome\Application\chrome.exe" --kiosk --kiosk-printing "http://localhost:3000/kiosk"
+
+5. Click OK
+6. Double-click shortcut to launch
+
+
+WHAT HAPPENS:
+=============
+
+1. User creates ticket
+2. Success screen appears
+3. After 0.8 seconds:
+   → Print preview appears
+   → Instantly auto-prints to Gprinter GP-1424D
+   → Preview closes automatically
+4. Ticket prints with beautiful design!
+5. Page resets after 15 seconds
+
+
+TROUBLESHOOTING:
+================
+
+Problem: Preview shows but doesn't auto-print
+Solution: 
+- Check chrome://flags
+- Make sure "Disable Print Preview" is NOT enabled
+- Print preview must be ENABLED
+
+Problem: Still shows print dialog
+Solution:
+- Make sure you're using --kiosk-printing flag
+- Close ALL Chrome windows first
+- Launch via batch file or modified shortcut
+
+Problem: Wrong printer
+Solution:
+- Set Gprinter GP-1424D as DEFAULT printer
+- Not just "preferred" - must be DEFAULT
+
+Problem: Chrome version too old
+Solution:
+- Update Chrome to latest version
+- Minimum version: 18.0.1
+
+
+TESTING:
+========
+
+1. Launch kiosk mode
+2. Create a test ticket
+3. Watch for:
+   - Print preview appears (brief flash)
+   - Auto-prints immediately
+   - Preview closes
+   - Ticket comes out of printer!
+
+
+EXIT KIOSK MODE:
+================
+
+Press: Alt + F4
+Or: Ctrl + W
+
+
+PRODUCTION DEPLOYMENT:
+======================
+
+For production kiosk:
+1. Set Windows to auto-login
+2. Add Chrome shortcut to Startup folder
+3. Use --kiosk --kiosk-printing flags
+4. Kiosk will auto-start on boot!
+
+
+SUCCESS INDICATORS:
+===================
+
+✅ Chrome opens full-screen (no address bar)
+✅ Print preview flashes briefly
+✅ Ticket auto-prints immediately
+✅ Beautiful design preserved
+✅ No user interaction needed!
+
+
+This is the professional kiosk solution!
