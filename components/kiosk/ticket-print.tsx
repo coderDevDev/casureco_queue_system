@@ -156,10 +156,12 @@ export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
           </div>
           <script>
             window.onload = function() {
+              // Trigger print immediately when window loads
+              window.print();
+              // Close after printing
               setTimeout(function() {
-                window.print();
                 window.close();
-              }, 250);
+              }, 100);
             };
           </script>
         </body>
@@ -189,7 +191,7 @@ export function TicketPrint({ ticket, onReset }: TicketPrintProps) {
         console.log('Auto-opening print dialog with formatted ticket...');
         // Use browser print to show the beautiful design
         handlePrint();
-      }, 800);
+      }, 100); // Ultra-fast printing - minimum safe delay
 
       return () => clearTimeout(printTimer);
     }
